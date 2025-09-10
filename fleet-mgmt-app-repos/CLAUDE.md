@@ -204,4 +204,38 @@ spec:
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
 - **CRITICAL**: Always run `pwd` before executing commands to verify current directory - especially important for relative paths, kubeconfig files, and script execution
+
+## VolSync E2E Testing Results Analysis
+
+### Analyzing Test Results After Full Test Suite
+When running the full VolSync e2e test suite, follow these steps to analyze results:
+
+1. **Count test results**:
+   ```bash
+   grep -c "State: pass" /tmp/volsync-full-e2e-tests.log
+   grep -c "State: fail" /tmp/volsync-full-e2e-tests.log
+   ```
+
+2. **Find failing tests**:
+   ```bash
+   grep -B 10 -A 5 "State: fail" /tmp/volsync-full-e2e-tests.log
+   ```
+
+3. **Analyze failure details**:
+   ```bash
+   # Look for specific error patterns
+   grep -A 20 "==FAILED==" /tmp/volsync-full-e2e-tests.log
+   grep "ApiException\|NotFoundError\|fatal:" /tmp/volsync-full-e2e-tests.log
+   ```
+
+4. **Success criteria**:
+   - 95%+ pass rate indicates successful test run
+   - Infrastructure errors (404, API connectivity) vs functional failures
+   - Core VolSync functionality (Restic, Rclone, Rsync, Syncthing) should pass
+   - Edge case failures (longname, special configurations) are less critical
+
+5. **Common failure patterns**:
+   - `kubernetes.dynamic.exceptions.NotFoundError: 404` = Kubernetes API connectivity issue
+   - `ApiException` = Cluster/infrastructure problem
+   - Ansible task failures = Functional issues that need investigation
 - **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
