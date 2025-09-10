@@ -102,8 +102,30 @@ When a konflux PR needs rebasing:
 - **Label management**: Ensure held PRs have "needs-ok-to-test" rather than "ok-to-test" to prevent accidental CI runs.
 - **Dependency conflict handling**: Add `/hold` comments explaining specific incompatibilities (e.g., structured-merge-diff v4/v6 conflicts).
 
+### Kubernetes/OpenShift Commands
+#### Konflux Cluster Access
+- **KUBECONFIG setup**: `export KUBECONFIG=$(pwd)/kubeconfig`
+- **Context switching**: 
+  - Konflux: `kubectl config use-context konflux`
+  - Local cluster: `kubectl config use-context tflow-419-hub_default`
+- **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
+- **Command pattern**: `export KUBECONFIG=$(pwd)/kubeconfig; oc -n <namespace> get <resource>`
+- **Example**: `export KUBECONFIG=$(pwd)/kubeconfig; oc -n volsync-tenant get component`
+
+#### Getting Images from Konflux PRs
+- **Find snapshots for a PR**: `oc -n volsync-tenant get snapshots -l "pac.test.appstudio.openshift.io/pull-request=<PR_NUMBER>,pac.test.appstudio.openshift.io/event-type=pull_request" --sort-by=.metadata.creationTimestamp`
+- **Get latest snapshots**: Take the most recent ones from the sorted list (bottom entries)
+- **Verify commit SHA**: Check snapshot annotation matches PR head: `oc get snapshot <name> -o jsonpath='{.metadata.annotations.build\.appstudio\.redhat\.com/commit_sha}'`
+- **Compare with PR head**: `gh pr view <PR_NUMBER> --json headRefOid`
+- **Extract container images**: `oc -n volsync-tenant get snapshots <snapshot-names> -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.components[0].containerImage}{"\n"}{end}'`
+- **Example**: For PR #29, this returns all FBC images built for different OpenShift versions (4-14 through 4-19)
+
 ## Notes
 <!-- Add any additional project-specific information -->
 - Default branch: main
 - Language: Go
 - Go modules: enabled
+- **Git repository structure**: This directory (`fleet-mgmt-app-repos/`) is a subdirectory of the main git repository
+- **Git operations**: When committing changes, files are relative to the git root, not this working directory
+- **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig file is in the `fleet-mgmt-app-repos/` directory, not in subdirectories like checked-out repos
+- remember what path you're at before running relative commands
