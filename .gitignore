@@ -2,8 +2,7 @@
 fleet-mgmt-app-repos/.claude/
 
 # Kubernetes config files
-fleet-mgmt-app-repos/kubeconfig
-fleet-mgmt-app-repos/kubeconfig.*
+fleet-mgmt-app-repos/.kube/
 
 # Checked out repositories (have their own git histories)
 fleet-mgmt-app-repos/volsync-addon-controller/

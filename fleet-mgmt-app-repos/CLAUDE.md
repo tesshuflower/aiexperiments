@@ -103,14 +103,19 @@ When a konflux PR needs rebasing:
 - **Dependency conflict handling**: Add `/hold` comments explaining specific incompatibilities (e.g., structured-merge-diff v4/v6 conflicts).
 
 ### Kubernetes/OpenShift Commands
-#### Konflux Cluster Access
-- **KUBECONFIG setup**: `export KUBECONFIG=$(pwd)/kubeconfig`
-- **Context switching**: 
-  - Konflux: `kubectl config use-context konflux`
-  - Local cluster: `kubectl config use-context tflow-419-hub_default`
+#### Cluster Access with Separate Kubeconfig Files
+- **Setup**: Copy kubeconfig files to `.kube/` directory with descriptive names:
+  - `cp ~/DEV/KONFLUX/konflux-rh01.kubeconfig .kube/config-konflux`
+  - `cp ~/.kube/tflow-419-hub.config .kube/config-4-19`
+  - `cp /path/to/other-cluster.config .kube/config-<cluster-name>`
+- **Konflux cluster**: `export KUBECONFIG=$(pwd)/.kube/config-konflux`
+- **Other clusters**: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18, config-staging)
+- **No context switching needed**: Each kubeconfig file contains only one cluster/context
 - **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
-- **Command pattern**: `export KUBECONFIG=$(pwd)/kubeconfig; oc -n <namespace> get <resource>`
-- **Example**: `export KUBECONFIG=$(pwd)/kubeconfig; oc -n volsync-tenant get component`
+- **Command patterns**:
+  - Konflux: `export KUBECONFIG=$(pwd)/.kube/config-konflux; oc -n <namespace> get <resource>`
+  - Other clusters: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>; kubectl get <resource>`
+- **Example**: `export KUBECONFIG=$(pwd)/.kube/config-konflux; oc -n volsync-tenant get component`
 
 #### Getting Images from Konflux PRs
 - **Find snapshots for a PR**: `oc -n volsync-tenant get snapshots -l "pac.test.appstudio.openshift.io/pull-request=<PR_NUMBER>,pac.test.appstudio.openshift.io/event-type=pull_request" --sort-by=.metadata.creationTimestamp`
@@ -147,7 +152,7 @@ spec:
 - Go modules: enabled
 - **Git repository structure**: This directory (`fleet-mgmt-app-repos/`) is a subdirectory of the main git repository
 - **Git operations**: When committing changes, files are relative to the git root, not this working directory
-- **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig file is in the `fleet-mgmt-app-repos/` directory, not in subdirectories like checked-out repos
+- **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig files are in the `fleet-mgmt-app-repos/.kube/` directory, not in subdirectories like checked-out repos
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
 - remember what path you're at before running relative commands
