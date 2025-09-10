@@ -1,0 +1,9 @@
+# Claude session data
+fleet-mgmt-app-repos/.claude/
+
+# Checked out repositories (have their own git histories)
+fleet-mgmt-app-repos/volsync-addon-controller/
+fleet-mgmt-app-repos/volsync-operator-product-build/
+fleet-mgmt-app-repos/volsync-operator-product-fbc/
+fleet-mgmt-app-repos/cluster-backup-operator/
+fleet-mgmt-app-repos/volsync/
