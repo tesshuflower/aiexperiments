@@ -120,6 +120,26 @@ When a konflux PR needs rebasing:
 - **Extract container images**: `oc -n volsync-tenant get snapshots <snapshot-names> -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.components[0].containerImage}{"\n"}{end}'`
 - **Example**: For PR #29, this returns all FBC images built for different OpenShift versions (4-14 through 4-19)
 
+#### Testing FBC Images
+- **Create test CatalogSource**: Use FBC images from Konflux PR builds to test operator catalogs
+- **Steps**:
+  1. Verify correct cluster context: `kubectl config current-context`
+  2. Create CatalogSource YAML in `/tmp/` directory
+  3. Apply: `oc apply -f /tmp/catalogsource.yaml`
+- **Template**:
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: fbc-on-pr-<VERSION>-test-catalogsource
+  namespace: openshift-marketplace
+spec:
+  sourceType: grpc
+  image: quay.io/redhat-user-workloads/volsync-tenant/volsync-fbc-<VERSION>@sha256:<digest>
+  displayName: Konflux FBC test CatalogSource PR #<PR> <VERSION>
+  publisher: Red Hat
+```
+
 ## Notes
 <!-- Add any additional project-specific information -->
 - Default branch: main
@@ -128,4 +148,6 @@ When a konflux PR needs rebasing:
 - **Git repository structure**: This directory (`fleet-mgmt-app-repos/`) is a subdirectory of the main git repository
 - **Git operations**: When committing changes, files are relative to the git root, not this working directory
 - **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig file is in the `fleet-mgmt-app-repos/` directory, not in subdirectories like checked-out repos
+- **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
+- **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
 - remember what path you're at before running relative commands
