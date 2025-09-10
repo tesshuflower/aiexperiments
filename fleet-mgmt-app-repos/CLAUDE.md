@@ -36,8 +36,8 @@ notify_user() {
   local title="$2"
   
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS - use single quotes to avoid escaping issues
-    osascript -e 'display dialog "'"$message"'" with title "'"$title"'"'
+    # macOS - escape quotes properly
+    osascript -e "display dialog \"$message\" with title \"$title\""
   elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     if command -v notify-send &> /dev/null; then
@@ -182,6 +182,17 @@ spec:
   4. Monitor: `oc get subs -n openshift-operators`
 - **Usage**: Say "create a volsync subscription" - Claude will prompt for inputs and handle the entire process
 
+#### Running VolSync E2E Tests (Custom Scorecard Tests)
+- **Prerequisites**: 
+  1. VolSync operator installed on target cluster
+  2. Set correct KUBECONFIG: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>`
+  3. Create service account: `./hack/ensure-volsync-test-runner.sh`
+  4. Install operator-sdk: `make operator-sdk` (installs to `./bin/operator-sdk`)
+- **Deploy prerequisites**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
+- **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+- **Run single test**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=<test-name.yml> -o text --wait-time=300s --skip-cleanup=false --service-account=volsync-test-runner`
+- **Usage**: Say "run volsync e2e tests" - Claude will help execute the appropriate tests
+
 ## Notes
 <!-- Add any additional project-specific information -->
 - Default branch: main
@@ -192,4 +203,5 @@ spec:
 - **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig files are in the `fleet-mgmt-app-repos/.kube/` directory, not in subdirectories like checked-out repos
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
-- remember what path you're at before running relative commands
+- **CRITICAL**: Always run `pwd` before executing commands to verify current directory - especially important for relative paths, kubeconfig files, and script execution
+- **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
