@@ -36,8 +36,8 @@ notify_user() {
   local title="$2"
   
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    osascript -e "display dialog \"$message\" with title \"$title\""
+    # macOS - use single quotes to avoid escaping issues
+    osascript -e 'display dialog "'"$message"'" with title "'"$title"'"'
   elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
     if command -v notify-send &> /dev/null; then
@@ -55,16 +55,17 @@ notify_user() {
 
 while true; do 
   echo "=== $(date) ==="
-  status=$(gh run list --branch BRANCH --limit 3 | grep "RUN_ID" | awk '{print $2}')
-  if [[ "$status" == "completed" ]]; then
+  # Use 'run_status' instead of 'status' to avoid read-only variable conflicts
+  run_status=$(gh run list --branch BRANCH --limit 3 | grep "RUN_ID" | awk '{print $2}')
+  if [[ "$run_status" == "completed" ]]; then
     result=$(gh run list --branch BRANCH --limit 3 | grep "RUN_ID" | awk '{print $3}')
     notify_user "Workflow RUN_ID completed with status: $result" "GitHub Actions Alert"
     break
-  elif [[ "$status" != "in_progress" && "$status" != "" ]]; then
-    notify_user "Workflow RUN_ID finished with status: $status" "GitHub Actions Alert"
+  elif [[ "$run_status" != "in_progress" && "$run_status" != "" ]]; then
+    notify_user "Workflow RUN_ID finished with status: $run_status" "GitHub Actions Alert"
     break
   fi
-  echo "Status: $status - checking again in 10 minutes"
+  echo "Status: $run_status - checking again in 10 minutes"
   sleep 600
 done
 ```
@@ -78,6 +79,9 @@ done
 - Special attention: Highlight PRs with "konflux-nudge" label when reviewing automated PRs
 - When showing PR diffs: Always use --color=always flag for colored output
 - When approving PRs: Add comment with "/approve" on one line and "/lgtm" on the next line
+
+### Repository Display
+- When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
 #### Rebasing Konflux PRs
 When a konflux PR needs rebasing:
