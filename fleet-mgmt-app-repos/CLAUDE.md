@@ -31,6 +31,7 @@
 - Create PR: Standard process with auto-generated descriptions
 - Review checklist: Code review, tests pass, documentation updated
 - When listing PRs: Always identify which PRs only modify .tekton files (tekton-only changes)
+- When listing PRs: Always indicate if PRs are on hold by checking for "do-not-merge/hold" labels
 - Automated PRs: konflux/mintmaker and red-hat-konflux create automated dependency/digest update PRs
 - Special attention: Highlight PRs with "konflux-nudge" label when reviewing automated PRs
 - When showing PR diffs: Always use --color=always flag for colored output
