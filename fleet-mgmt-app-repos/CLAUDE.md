@@ -145,6 +145,43 @@ spec:
   publisher: Red Hat
 ```
 
+#### Working with OLM Subscriptions
+- **List subscriptions**: `oc get subs -n <namespace>` (shorthand for subscriptions.operators.coreos.com)
+- **Get subscription details**: `oc get subscription.operators.coreos.com <name> -n <namespace> -o yaml`
+- **Delete subscription**: `oc delete subscription.operators.coreos.com <name> -n <namespace>`
+- **Important**: Always specify the full API group `subscription.operators.coreos.com` when deleting to avoid conflicts with other subscription types
+- **Check subscription status**: Look for conditions like `BundleUnpackFailed`, `CatalogSourcesUnhealthy`
+- **Common issues**: 
+  - Bundle unpacking timeouts (`DeadlineExceeded`)
+  - Catalog source connectivity problems
+  - Image pull failures from Konflux registry
+
+#### Creating OLM Subscriptions for VolSync from FBC
+- **Always ask user for**:
+  - Channel (e.g., stable-0.12, stable-0.13)
+  - StartingCSV (specific version or leave blank for latest)
+- **Template**:
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: volsync-product
+  namespace: openshift-operators
+spec:
+  channel: <USER_PROVIDED_CHANNEL>
+  name: volsync-product
+  source: <FBC_CATALOG_SOURCE_NAME>
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  startingCSV: <USER_PROVIDED_CSV_OR_OMIT>
+```
+- **Process**:
+  1. Ask user for channel, catalog source, and startingCSV
+  2. Create YAML in `/tmp/volsync-subscription.yaml`
+  3. Apply: `oc apply -f /tmp/volsync-subscription.yaml`
+  4. Monitor: `oc get subs -n openshift-operators`
+- **Usage**: Say "create a volsync subscription" - Claude will prompt for inputs and handle the entire process
+
 ## Notes
 <!-- Add any additional project-specific information -->
 - Default branch: main
