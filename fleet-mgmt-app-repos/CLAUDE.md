@@ -254,6 +254,65 @@ spec:
   publisher: Red Hat
 ```
 
+#### Verifying Snapshots for Stage Releases ⚠️ **COMPREHENSIVE VERIFICATION REQUIRED**
+
+When preparing a release to stage, you need snapshots containing both operator and bundle images. This workflow ensures the snapshot contains consistent, latest builds.
+
+**Step 1: Find Latest Application Snapshots**
+```bash
+# Get snapshots for the application (contains both operator and bundle components)
+export KUBECONFIG=/path/to/fleet-mgmt-app-repos/.kube/config-konflux
+oc -n volsync-tenant get snapshots -l appstudio.openshift.io/application=volsync-0-12 --sort-by=.metadata.creationTimestamp | tail -10
+```
+
+**Step 2: Verify Snapshot Contains Both Components**
+```bash
+# Check latest snapshot contains both required components
+SNAPSHOT_NAME="volsync-0-12-<latest>"
+oc -n volsync-tenant get snapshot $SNAPSHOT_NAME -o jsonpath='{.spec.components[*].name}'
+# Expected output: volsync-0-12 volsync-bundle-0-12
+```
+
+**Step 3: Get Latest Promoted Images from Components**
+```bash
+# Get the latest promoted image from each component
+echo "=== volsync-0-12 component ==="
+oc -n volsync-tenant get component volsync-0-12 -o jsonpath='{.status.lastPromotedImage}'
+echo
+echo "=== volsync-bundle-0-12 component ==="
+oc -n volsync-tenant get component volsync-bundle-0-12 -o jsonpath='{.status.lastPromotedImage}'
+echo
+```
+
+**Step 4: Compare Snapshot Images with Component Status**
+```bash
+# Get images from the snapshot
+echo "=== Snapshot Images ==="
+oc -n volsync-tenant get snapshot $SNAPSHOT_NAME -o jsonpath='{range .spec.components[*]}{.name}{": "}{.containerImage}{"\n"}{end}'
+```
+
+**Step 5: Verify Bundle References Correct Operator Image**
+```bash
+# Get the commit SHA that built the bundle image
+BUNDLE_COMMIT=$(oc -n volsync-tenant get component volsync-bundle-0-12 -o jsonpath='{.status.lastBuiltCommit}')
+echo "Bundle built from commit: $BUNDLE_COMMIT"
+
+# Check the operator digest referenced in that commit's rhtap-buildargs.conf
+cd /path/to/fleet-mgmt-app-repos/volsync-operator-product-build
+git fetch origin && git checkout release-0.12 && git pull
+git show $BUNDLE_COMMIT:rhtap-buildargs.conf | grep "ARG_STAGE_VOLSYNC_IMAGE_PULLSPEC"
+```
+
+**Step 6: Final Verification Checklist**
+- ✅ Snapshot contains both `volsync-0-12` and `volsync-bundle-0-12` components
+- ✅ Snapshot image digests match component `lastPromotedImage` digests
+- ✅ Bundle's `rhtap-buildargs.conf` references the same operator digest as in snapshot
+- ✅ All components built from recent commits (verify timestamps)
+
+**Success Criteria**: All digests match perfectly across snapshot, component status, and bundle build args.
+
+**Usage for Releases**: Reference the verified snapshot name (e.g., `volsync-0-12-4szwc`) in your release configuration.
+
 #### Working with OLM Subscriptions
 - **List subscriptions**: `oc get subs -n <namespace>` (shorthand for subscriptions.operators.coreos.com)
 - **Get subscription details**: `oc get subscription.operators.coreos.com <name> -n <namespace> -o yaml`
