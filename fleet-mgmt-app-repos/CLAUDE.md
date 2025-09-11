@@ -26,21 +26,34 @@ testing, and release across multiple Red Hat and upstream repositories.
 
 ## Environment Setup
 
-### Fleet Management Directory Variable
+### Session-Level Path Discovery
 
-Set this variable to point to your fleet-mgmt-app-repos directory:
+**For Claude Code sessions**: Use git-based discovery once per conversation, then use the discovered path consistently throughout the session.
 
+**Step 1: Discover the path once per session**
 ```bash
-# Auto-detect if you're in the fleet-mgmt-app-repos directory or a subdirectory
-if [[ "$PWD" == *"fleet-mgmt-app-repos"* ]]; then
-    export FLEET_MGMT_DIR="${PWD%/fleet-mgmt-app-repos*}/fleet-mgmt-app-repos"
-else
-    # Manual setup - adjust path as needed
-    export FLEET_MGMT_DIR="$HOME/path/to/fleet-mgmt-app-repos"
-fi
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) && echo "Fleet mgmt dir: $REPO_ROOT/fleet-mgmt-app-repos"
 ```
 
-All subsequent commands in this document use `$FLEET_MGMT_DIR` to reference the base directory.
+**Step 2: Use the discovered path for all subsequent commands**
+```bash
+# Example discovered path: /Users/username/projects/aiexperiments/fleet-mgmt-app-repos
+export KUBECONFIG=/path/to/discovered/fleet-mgmt-app-repos/.kube/config-konflux
+```
+
+**Why this approach:**
+- **Portable**: Works regardless of where the git repo is cloned
+- **Consistent**: Same path used throughout the conversation session
+- **Fast**: Only need to discover once per session
+- **No hardcoded paths**: Automatically adapts to different clone locations
+
+**For interactive sessions**: You can set the variable once and use it:
+```bash
+export FLEET_MGMT_DIR="$(git rev-parse --show-toplevel)/fleet-mgmt-app-repos"
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
+```
+
+**Note**: Commands in this document show `$FLEET_MGMT_DIR` for readability, but Claude Code will use the actual discovered absolute path (e.g., `/Users/username/projects/aiexperiments/fleet-mgmt-app-repos`).
 
 ## Development Commands
 
