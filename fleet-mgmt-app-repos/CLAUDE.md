@@ -115,12 +115,16 @@ done
 - Monitor test logs for detailed failure analysis
 - Retry individual failed tests before full suite reruns
 
-**ImageContentSourcePolicy Verification:**
+**ImageContentSourcePolicy and Pull Secret Configuration:**
 - Always check for mirrors before deploying dev builds
 - Verify quay.io/acm-d mirrors are configured for dev images
 - Essential for dev builds that redirect from registry.redhat.io
 - CRITICAL: Always inform user about mirror status - sometimes we want dev mirrors (quay.io/acm-d), sometimes we want to test GA image locations (registry.redhat.io)
 - Let user decide whether to proceed with existing mirrors or modify them for the specific test scenario
+- CRITICAL: When using mirrors with port-specific registries (e.g., quay.io:443/acm-d), ensure pull secret contains credentials for the exact registry format
+- Extract credentials from user's local ~/.docker/config.json and patch cluster pull secret
+- Verify credentials are added: `kubectl get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys[]'`
+- SECURITY: Always clean up temporary files containing credentials: `rm -f /tmp/*dockerconfig*.json`
 
 #### Rebasing Konflux PRs
 When a konflux PR needs rebasing:
