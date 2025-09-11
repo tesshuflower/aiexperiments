@@ -24,6 +24,24 @@ testing, and release across multiple Red Hat and upstream repositories.
 ### Release Data Repos
 - Konflux Release Data: https://gitlab.cee.redhat.com/releng/konflux-release-data - Konflux release data repository
 
+## Environment Setup
+
+### Fleet Management Directory Variable
+
+Set this variable to point to your fleet-mgmt-app-repos directory:
+
+```bash
+# Auto-detect if you're in the fleet-mgmt-app-repos directory or a subdirectory
+if [[ "$PWD" == *"fleet-mgmt-app-repos"* ]]; then
+    export FLEET_MGMT_DIR="${PWD%/fleet-mgmt-app-repos*}/fleet-mgmt-app-repos"
+else
+    # Manual setup - adjust path as needed
+    export FLEET_MGMT_DIR="$HOME/path/to/fleet-mgmt-app-repos"
+fi
+```
+
+All subsequent commands in this document use `$FLEET_MGMT_DIR` to reference the base directory.
+
 ## Development Commands
 
 ### Testing and Linting
@@ -184,14 +202,14 @@ When a konflux PR needs rebasing:
   - `cp ~/DEV/KONFLUX/konflux-rh01.kubeconfig .kube/config-konflux`
   - `cp ~/.kube/tflow-419-hub.config .kube/config-4-19`
   - `cp /path/to/other-cluster.config .kube/config-<cluster-name>`
-- **Konflux cluster**: `export KUBECONFIG=$(pwd)/.kube/config-konflux`
-- **Other clusters**: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18, config-staging)
+- **Konflux cluster**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux`
+- **Other clusters**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18, config-staging)
 - **No context switching needed**: Each kubeconfig file contains only one cluster/context
 - **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
 - **Command patterns**:
-  - Konflux: `export KUBECONFIG=$(pwd)/.kube/config-konflux; oc -n <namespace> get <resource>`
-  - Other clusters: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>; kubectl get <resource>`
-- **Example**: `export KUBECONFIG=$(pwd)/.kube/config-konflux; oc -n volsync-tenant get component`
+  - Konflux: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n <namespace> get <resource>`
+  - Other clusters: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>; kubectl get <resource>`
+- **Example**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n volsync-tenant get component`
 
 #### Getting Images from Konflux PRs ⚠️ **ALWAYS USE THIS METHOD - DON'T FORGET!**
 - **CRITICAL**: Always use snapshots with PR labels, NOT application labels or recent snapshots
@@ -263,7 +281,7 @@ spec:
 #### Running VolSync E2E Tests (Custom Scorecard Tests)
 - **Prerequisites**: 
   1. VolSync operator installed on target cluster
-  2. Set correct KUBECONFIG: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>`
+  2. Set correct KUBECONFIG: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>`
   3. Create service account: `./hack/ensure-volsync-test-runner.sh`
   4. Install operator-sdk: `make operator-sdk` (installs to `./bin/operator-sdk`)
 - **Deploy prerequisites**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
@@ -277,7 +295,7 @@ spec:
 
 **Prerequisites**:
 1. VolSync operator installed on target cluster
-2. Set correct KUBECONFIG: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>`
+2. Set correct KUBECONFIG: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>`
 3. Create service account: `./hack/ensure-volsync-test-runner.sh`
 4. Install operator-sdk: `make operator-sdk`
 
@@ -298,13 +316,13 @@ spec:
 
 **Konflux cluster**:
 ```bash
-unset KUBECONFIG && export KUBECONFIG=$(pwd)/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
+unset KUBECONFIG && export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
 ```
 
 **Other clusters**:
 ```bash
 ck creds <cluster-name>  # Get credentials via cluster-keeper
-export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>
 ```
 
 ### 4. Creating OLM Subscriptions
@@ -355,11 +373,11 @@ export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>
 ### Konflux Cluster Authentication
 When Konflux credentials expire, re-authenticate using:
 ```bash
-unset KUBECONFIG && export KUBECONFIG=$(pwd)/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
+unset KUBECONFIG && export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
 ```
 After authentication, always use the single-command pattern for kubectl operations:
 ```bash
-unset KUBECONFIG && export KUBECONFIG=/Users/tflower/DEV/tesshuflower/aiexperiments/fleet-mgmt-app-repos/.kube/config-konflux && kubectl command
+unset KUBECONFIG && export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux && kubectl command
 ```
 
 ### Cluster-Keeper (ck) Tool Usage
