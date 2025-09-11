@@ -1,4 +1,13 @@
-# Repository Configurations
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
+
+## Project Overview
+
+This is a multi-repository management workspace for VolSync and related projects.
+It contains configurations and tools for managing VolSync operator development,
+testing, and release across multiple Red Hat and upstream repositories.
 
 ## Repositories
 ### Product Repos
@@ -12,15 +21,26 @@
 ### Upstream Repos
 - VolSync (volsync): https://github.com/backube/volsync - VolSync upstream repository
 
-## Common Actions
-<!-- Define common tasks you want to run across repos -->
+### Release Data Repos
+- Konflux Release Data: https://gitlab.cee.redhat.com/releng/konflux-release-data - Konflux release data repository
 
-### Build & Test
-- Build: `go build ./...`
-- Test: `go test ./...`
-- Lint: `golangci-lint run`
-- Format: `go fmt ./...`
-- Vet: `go vet ./...`
+## Development Commands
+
+### Testing and Linting
+
+#### **Universal Commands (Use these for all repos)**
+
+- `make test` - Run all tests
+- `make lint` - Run linting and code quality checks
+- `make build` - Build the project
+- `make clean` - Clean build artifacts
+
+#### **Additional Go Commands (fallback if make targets unavailable)**
+
+- `go test ./...` - Run all tests
+- `go build ./...` - Build all packages
+- `go fmt ./...` - Format code
+- `go vet ./...` - Vet code
 
 ### GitHub Actions
 - Deploy to staging: `gh workflow run deploy.yml --ref staging`
@@ -173,13 +193,15 @@ When a konflux PR needs rebasing:
   - Other clusters: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>; kubectl get <resource>`
 - **Example**: `export KUBECONFIG=$(pwd)/.kube/config-konflux; oc -n volsync-tenant get component`
 
-#### Getting Images from Konflux PRs
+#### Getting Images from Konflux PRs ⚠️ **ALWAYS USE THIS METHOD - DON'T FORGET!**
+- **CRITICAL**: Always use snapshots with PR labels, NOT application labels or recent snapshots
 - **Find snapshots for a PR**: `oc -n volsync-tenant get snapshots -l "pac.test.appstudio.openshift.io/pull-request=<PR_NUMBER>,pac.test.appstudio.openshift.io/event-type=pull_request" --sort-by=.metadata.creationTimestamp`
-- **Get latest snapshots**: Take the most recent ones from the sorted list (bottom entries)
+- **Get latest snapshots**: Take the most recent ones from the sorted list (bottom entries) - one for each OCP version
 - **Verify commit SHA**: Check snapshot annotation matches PR head: `oc get snapshot <name> -o jsonpath='{.metadata.annotations.build\.appstudio\.redhat\.com/commit_sha}'`
 - **Compare with PR head**: `gh pr view <PR_NUMBER> --json headRefOid`
 - **Extract container images**: `oc -n volsync-tenant get snapshots <snapshot-names> -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.components[0].containerImage}{"\n"}{end}'`
 - **Example**: For PR #29, this returns all FBC images built for different OpenShift versions (4-14 through 4-19)
+- **⚠️ REMEMBER**: Use the documented method in this file, don't improvise with different label selectors!
 
 #### Testing FBC Images
 - **Create test CatalogSource**: Use FBC images from Konflux PR builds to test operator catalogs
@@ -248,6 +270,74 @@ spec:
 - **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
 - **Run single test**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=<test-name.yml> -o text --wait-time=300s --skip-cleanup=false --service-account=volsync-test-runner`
 - **Usage**: Say "run volsync e2e tests" - Claude will help execute the appropriate tests
+
+## Common Workflows
+
+### 1. Running VolSync E2E Tests
+
+**Prerequisites**:
+1. VolSync operator installed on target cluster
+2. Set correct KUBECONFIG: `export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>`
+3. Create service account: `./hack/ensure-volsync-test-runner.sh`
+4. Install operator-sdk: `make operator-sdk`
+
+**Steps**:
+1. Deploy prerequisites: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
+2. Run all tests: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+
+### 2. Testing Konflux FBC Images
+
+**Steps**:
+1. Get FBC images from Konflux PR: Use snapshots with PR labels
+2. Create CatalogSource in `/tmp/catalogsource.yaml`
+3. Apply: `oc apply -f /tmp/catalogsource.yaml`
+4. Create subscription for testing
+5. Verify operator installation
+
+### 3. Managing Cluster Credentials
+
+**Konflux cluster**:
+```bash
+unset KUBECONFIG && export KUBECONFIG=$(pwd)/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
+```
+
+**Other clusters**:
+```bash
+ck creds <cluster-name>  # Get credentials via cluster-keeper
+export KUBECONFIG=$(pwd)/.kube/config-<cluster-name>
+```
+
+### 4. Creating OLM Subscriptions
+
+**Process**:
+1. Ask user for channel, catalog source, and startingCSV
+2. Create YAML in `/tmp/volsync-subscription.yaml`
+3. Apply: `oc apply -f /tmp/volsync-subscription.yaml`
+4. Monitor: `oc get subs -n openshift-operators`
+
+## Dependencies and Prerequisites
+
+### Required Tools
+
+- **oc/kubectl** - OpenShift/Kubernetes CLI tools
+- **gh** - GitHub CLI for PR management
+- **ck** - cluster-keeper tool for OpenShift cluster management
+- **make** - Build system (preferred over direct go commands)
+- **git** - Version control
+- **yq** - YAML processing (for konflux-release-data repo)
+- **tox** - Testing framework (for konflux-release-data repo)
+
+### Environment Requirements
+
+- **KUBECONFIG** - Kubernetes cluster configuration
+- **Go modules** - Enabled for Go projects
+- **Virtual environment** - For Python-based repositories
+
+### Common Environment Variables
+
+- **PYXIS_URL** - For integration tests (konflux-release-data)
+- **CGW_TOKEN_RO** - For integration tests (konflux-release-data)
+- **PRODSEC_PRODUCT_DEFINITIONS_URL** - For integration tests (konflux-release-data)
 
 ## Notes
 <!-- Add any additional project-specific information -->
