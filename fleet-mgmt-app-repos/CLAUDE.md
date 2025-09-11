@@ -204,6 +204,17 @@ spec:
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
 - **CRITICAL**: Always run `pwd` before executing commands to verify current directory - especially important for relative paths, kubeconfig files, and script execution
+- **KUBECONFIG Management**: The environment has a persistent KUBECONFIG variable that gets reset between bash commands. Always use single-command syntax: `unset KUBECONFIG && export KUBECONFIG=/path/to/config && kubectl command` to ensure the correct kubeconfig is used
+
+### Konflux Cluster Authentication
+When Konflux credentials expire, re-authenticate using:
+```bash
+unset KUBECONFIG && export KUBECONFIG=$(pwd)/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
+```
+After authentication, always use the single-command pattern for kubectl operations:
+```bash
+unset KUBECONFIG && export KUBECONFIG=/Users/tflower/DEV/tesshuflower/aiexperiments/fleet-mgmt-app-repos/.kube/config-konflux && kubectl command
+```
 
 ## VolSync E2E Testing Results Analysis
 
