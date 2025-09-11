@@ -83,6 +83,45 @@ done
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
+#### Key Lessons Learned
+
+**KUBECONFIG Management:**
+- Environment has persistent KUBECONFIG that resets between commands
+- ALWAYS use single-command syntax: `unset KUBECONFIG && export KUBECONFIG=/path && kubectl command`
+- Never rely on KUBECONFIG persisting across separate bash commands
+
+**Directory Awareness:**
+- Always run `pwd` before relative commands to confirm current location
+- Use absolute paths when possible to avoid confusion
+- Remember which directory you're in before running relative commands
+
+**Cluster-Keeper (ck) Tool Usage:**
+- Get cluster credentials: `ck creds <cluster-name>`
+- Automatically creates kubeconfig files for OpenShift clusters
+- Essential for managing multiple cluster environments
+
+**Konflux Authentication:**
+- Authenticate with: `oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/`
+- Use snapshots to find FBC images, not pipelineruns
+- Dev builds use quay.io/acm-d instead of registry.redhat.io
+
+**File Creation Best Practices:**
+- Use `/tmp` for temporary files instead of deep relative paths
+- Use bash commands with absolute paths instead of Write tool when dealing with complex paths
+
+**VolSync E2E Testing:**
+- Custom scorecard tests provide comprehensive operator validation
+- Use config-downstream.yaml for downstream builds
+- Monitor test logs for detailed failure analysis
+- Retry individual failed tests before full suite reruns
+
+**ImageContentSourcePolicy Verification:**
+- Always check for mirrors before deploying dev builds
+- Verify quay.io/acm-d mirrors are configured for dev images
+- Essential for dev builds that redirect from registry.redhat.io
+- CRITICAL: Always inform user about mirror status - sometimes we want dev mirrors (quay.io/acm-d), sometimes we want to test GA image locations (registry.redhat.io)
+- Let user decide whether to proceed with existing mirrors or modify them for the specific test scenario
+
 #### Rebasing Konflux PRs
 When a konflux PR needs rebasing:
 1. Clone the repo if not already cloned
@@ -214,6 +253,29 @@ unset KUBECONFIG && export KUBECONFIG=$(pwd)/.kube/config-konflux && oc login --
 After authentication, always use the single-command pattern for kubectl operations:
 ```bash
 unset KUBECONFIG && export KUBECONFIG=/Users/tflower/DEV/tesshuflower/aiexperiments/fleet-mgmt-app-repos/.kube/config-konflux && kubectl command
+```
+
+### Cluster-Keeper (ck) Tool Usage
+The `ck` tool manages OpenShift clusters. Key commands:
+
+**Getting cluster credentials and creating kubeconfig:**
+```bash
+# Get credentials for a cluster
+ck creds <cluster-name>
+
+# Create kubeconfig file for a cluster
+oc login --kubeconfig=.kube/config-<cluster-name> <api-url> -u <username> -p "<password>" --insecure-skip-tls-verify
+```
+
+**Common cluster management:**
+```bash
+ck list                    # List available clusters
+ck current                 # Show current context
+ck use <cluster-name>      # Switch to cluster context
+ck state <cluster-name>    # Check power state
+ck hibernate <cluster>     # Hibernate cluster
+ck run <cluster>           # Resume hibernated cluster
+ck console <cluster>       # Open cluster console
 ```
 
 ## VolSync E2E Testing Results Analysis
