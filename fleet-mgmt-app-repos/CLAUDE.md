@@ -114,6 +114,19 @@ done
 - Use config-downstream.yaml for downstream builds
 - Monitor test logs for detailed failure analysis
 - Retry individual failed tests before full suite reruns
+- CRITICAL: Ensure volsync repository branch matches the operator version being tested
+- Before running e2e tests, verify you're on the correct release branch (e.g., release-0.12 for v0.12.2 operator)
+- Check git branch and ensure it's up-to-date: `git branch --show-current && git fetch origin && git status`
+
+**Verifying Operator Installation:**
+- Check CSV status: `kubectl get csv <csv-name> -n openshift-operators`
+- Verify pod status: `kubectl get pods -n openshift-operators | grep volsync`
+- Check image registry: `kubectl describe pod <pod-name> -n openshift-operators | grep "Image:"`
+- IMPORTANT: Images will always show registry.redhat.io since that is the official release location, not the dev registry
+- The actual image source (dev vs GA) is determined by the mirrors and pull secret configuration, not the displayed image path
+- OpenShift image mirroring is transparent - events, logs, and pod descriptions show original URLs even when mirrors are used
+- Mirror functionality can be verified indirectly: successful installation from dev FBC + proper mirror/auth config = working mirrors
+- Validate subscription source: `kubectl get subscription.operators.coreos.com <name> -n openshift-operators -o yaml`
 
 **ImageContentSourcePolicy and Pull Secret Configuration:**
 - Always check for mirrors before deploying dev builds
