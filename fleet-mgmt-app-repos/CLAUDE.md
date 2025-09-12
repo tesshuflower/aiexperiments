@@ -81,26 +81,34 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 #### Monitoring Workflows
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
-# Function to send notification based on OS
+# Function to send notification based on OS and Slack integration
 notify_user() {
   local message="$1"
   local title="$2"
   
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS - escape quotes properly
-    osascript -e "display dialog \"$message\" with title \"$title\""
-  elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux
-    if command -v notify-send &> /dev/null; then
-      notify-send "$title" "$message"
-    elif command -v zenity &> /dev/null; then
-      zenity --info --title="$title" --text="$message"
+  # Send Slack notification if webhook URL is configured
+  if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then
+    curl -s -X POST -H 'Content-type: application/json' \
+      --data "{\"text\": \"*$title*\\n$message\"}" \
+      "$CLAUDE_SLACK_WEBHOOK_URL" > /dev/null
+  else
+    # Send local desktop notification only if Slack is not configured
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS - escape quotes properly
+      osascript -e "display dialog \"$message\" with title \"$title\""
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+      # Linux
+      if command -v notify-send &> /dev/null; then
+        notify-send "$title" "$message"
+      elif command -v zenity &> /dev/null; then
+        zenity --info --title="$title" --text="$message"
+      else
+        echo "🚨 $title: $message 🚨"
+      fi
     else
+      # Fallback for other systems
       echo "🚨 $title: $message 🚨"
     fi
-  else
-    # Fallback for other systems
-    echo "🚨 $title: $message 🚨"
   fi
 }
 
