@@ -147,6 +147,17 @@ done
 - When showing PR diffs: Always use --color=always flag for colored output
 - When approving PRs: Add comment with "/approve" on one line and "/lgtm" on the next line
 
+#### **CRITICAL: Verifying Bundle/Image Updates in PRs**
+When working with PRs that update bundle images or digests (especially FBC PRs):
+- **NEVER trust PR descriptions for technical details**: Descriptions become stale when PRs are updated
+- **Always check latest commits first**: Use `gh pr view <PR> --json commits` to see recent updates
+- **Use `gh pr diff` for current changes**: Shows actual current bundle digests, not outdated descriptions
+- **Cross-reference with Konflux**: Compare PR changes with latest promoted images using `oc get component -o jsonpath='{.status.lastPromotedImage}'`
+- **Example workflow for bundle PRs**:
+  1. `gh pr view <PR> --json commits` - Check for recent "Update with new bundle digest" commits
+  2. `gh pr diff <PR> | grep -A5 -B5 "sha256"` - Get actual current bundle digests
+  3. Verify the PR uses the latest bundle, not an outdated one from the original description
+
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
