@@ -81,7 +81,9 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 #### Monitoring Workflows
 **IMPORTANT**: When user asks to monitor anything:
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
-2. **Show only the actual command**: Don't show all the monitoring code/logic, just the simple command to execute
+2. **Show only the actual command**: Don't show monitoring code, notification logic, or while loops - just the core command (e.g., "gh pr view 276 --json state")
+3. **Confirm notification method**: Tell user "I will notify you via Slack" or similar
+4. **Report when monitoring completes**: Always tell the user in the chat when monitoring is finished (in addition to notifications)
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
