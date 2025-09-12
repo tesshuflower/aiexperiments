@@ -355,6 +355,50 @@ git show $BUNDLE_COMMIT:rhtap-buildargs.conf | grep "ARG_STAGE_VOLSYNC_IMAGE_PUL
   - Catalog source connectivity problems
   - Image pull failures from Konflux registry
 
+#### **CRITICAL: Clean Environment Before Testing New Catalogs**
+When testing new FBC/catalog images, **ALWAYS audit and clean existing resources first**:
+
+**Step 1: Audit existing resources**
+```bash
+# Check for old catalog sources that might conflict
+oc get catalogsource -n openshift-marketplace | grep -E "(fbc|test|pr)"
+
+# Check existing subscriptions and their sources
+oc get subs -n openshift-operators -o wide
+
+# Check existing CSVs
+oc get csv -n openshift-operators | grep volsync
+```
+
+**Step 2: Clean conflicting resources BEFORE installing new ones**
+```bash
+# Delete old test catalog sources (keep only the one you want to test)
+oc delete catalogsource <old-test-catalog> -n openshift-marketplace
+
+# Delete existing subscription if switching catalog sources
+oc delete subscription.operators.coreos.com <operator-name> -n openshift-operators
+
+# Delete existing CSV to force clean installation
+oc delete csv <old-csv-name> -n openshift-operators
+```
+
+**Step 3: Verify clean state before proceeding**
+```bash
+# Ensure only your target catalog source exists
+oc get catalogsource -n openshift-marketplace
+
+# Confirm no conflicting CSVs remain
+oc get csv -n openshift-operators | grep volsync
+```
+
+**Why this matters:**
+- **OLM resolver picks the "best" version** across ALL available catalogs, not just your target catalog
+- **Leftover resources from previous testing** can cause version conflicts and wrong installations
+- **You may think you're testing new images** when you're actually testing old ones from conflicting catalogs
+- **Always verify the actual installed version** matches what you expect from your target catalog
+
+**Key lesson:** Never assume a clean environment - always audit first, then clean, then install.
+
 #### Creating OLM Subscriptions for VolSync from FBC
 - **Always ask user for**:
   - Channel (e.g., stable-0.12, stable-0.13)
