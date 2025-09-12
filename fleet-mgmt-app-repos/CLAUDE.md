@@ -82,9 +82,9 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 **IMPORTANT**: When user asks to monitor anything (PRs, workflows, deployments, builds, etc.):
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
 2. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
-3. **Give monitoring summary**: Provide summary including interval and notification method, then ask if should proceed (user will specify different interval if needed)
-4. **Provide regular status updates**: Proactively check monitoring output and provide status updates in chat every interval - don't wait for user to ask
-5. **Report when monitoring completes**: Always tell the user in the chat when monitoring is finished (in addition to notifications)
+3. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
+4. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
+5. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
 6. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
