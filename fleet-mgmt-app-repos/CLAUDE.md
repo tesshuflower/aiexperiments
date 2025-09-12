@@ -11,8 +11,8 @@ testing, and release across multiple Red Hat and upstream repositories.
 
 ## Repositories
 ### Product Repos
-- VolSync Operator Product Build: https://github.com/stolostron/volsync-operator-product-build - VolSync operator product build repository
-- VolSync Operator Product FBC: https://github.com/stolostron/volsync-operator-product-fbc - VolSync operator product FBC (File-Based Catalog) repository
+- VolSync Operator Product Build (build): https://github.com/stolostron/volsync-operator-product-build - VolSync operator product build repository
+- VolSync Operator Product FBC (fbc): https://github.com/stolostron/volsync-operator-product-fbc - VolSync operator product FBC (File-Based Catalog) repository
 
 ### ACM Repos
 - VolSync Addon Controller (vac): https://github.com/stolostron/volsync-addon-controller - VolSync addon controller repository
@@ -83,6 +83,7 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
 2. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
 3. **Give monitoring summary**: Provide summary including interval and notification method, then ask if should proceed (user will specify different interval if needed)
+4. **Provide regular status updates**: Proactively check monitoring output and provide status updates in chat every interval - don't wait for user to ask
 5. **Report when monitoring completes**: Always tell the user in the chat when monitoring is finished (in addition to notifications)
 6. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
 
