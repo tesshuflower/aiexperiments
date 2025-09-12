@@ -79,6 +79,10 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - Run CI: `gh workflow run ci.yml`
 
 #### Monitoring Workflows
+**IMPORTANT**: When user asks to monitor anything:
+1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
+2. **Show only the actual command**: Don't show all the monitoring code/logic, just the simple command to execute
+
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
 # Function to send notification based on OS and Slack integration
