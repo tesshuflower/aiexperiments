@@ -166,6 +166,10 @@ done
 - Get cluster credentials: `ck creds <cluster-name>`
 - Automatically creates kubeconfig files for OpenShift clusters
 - Essential for managing multiple cluster environments
+- **CRITICAL: Always check cluster status before kubectl operations**: Use `ck list cc` to verify cluster is Running, not Hibernating
+- **Wake hibernated clusters**: Use `ck run <cluster-name>` to resume hibernated clusters before attempting kubectl commands
+- **Cluster status verification**: Timeout errors in kubectl often indicate hibernated clusters - always check `ck list cc` first
+- **Cluster startup timing**: After waking a hibernated cluster, wait 3-5 minutes for full startup before attempting kubectl operations
 
 **Konflux Authentication:**
 - Authenticate with: `oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/`
