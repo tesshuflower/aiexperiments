@@ -177,12 +177,20 @@ fi
 ```
 
 **Requirements for all monitoring scripts:**
+- **ALWAYS** provide core command and interval details BEFORE starting monitoring
 - Immediately stop and notify on authentication errors (don't retry)
 - For other errors, retry with 30-second intervals instead of full monitoring interval
 - Stop monitoring after 3 consecutive non-auth errors
 - Notify user about specific error types (auth vs connectivity)
 - Reset error counter on successful status checks
 - Include repository name and URLs in all notifications
+
+**Before starting ANY monitoring, ALWAYS specify:**
+```
+Core monitoring command: gh pr view <PR_NUM> -R <repo> --json state,labels
+Monitoring interval: Every X minutes (Y seconds)
+What it monitors: [list key things being tracked]
+```
 
 ### Pull Request Workflows
 - Create PR: Standard process with auto-generated descriptions
