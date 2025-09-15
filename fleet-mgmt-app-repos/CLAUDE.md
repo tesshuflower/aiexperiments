@@ -220,6 +220,17 @@ What it monitors: [list key things being tracked]
   /cherry-pick release-2.14
   ```
 
+#### **CRITICAL: Verifying Bundle/Image Updates in PRs**
+When working with PRs that update bundle images or digests (especially FBC PRs):
+- **NEVER trust PR descriptions for technical details**: Descriptions become stale when PRs are updated
+- **Always check latest commits first**: Use `gh pr view <PR> --json commits` to see recent updates
+- **Use `gh pr diff` for current changes**: Shows actual current bundle digests, not outdated descriptions
+- **Cross-reference with Konflux**: Compare PR changes with latest promoted images using `oc get component -o jsonpath='{.status.lastPromotedImage}'`
+- **Example workflow for bundle PRs**:
+  1. `gh pr view <PR> --json commits` - Check for recent "Update with new bundle digest" commits
+  2. `gh pr diff <PR> | grep -A5 -B5 "sha256"` - Get actual current bundle digests
+  3. Verify the PR uses the latest bundle, not an outdated one from the original description
+
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
@@ -239,6 +250,10 @@ What it monitors: [list key things being tracked]
 - Get cluster credentials: `ck creds <cluster-name>`
 - Automatically creates kubeconfig files for OpenShift clusters
 - Essential for managing multiple cluster environments
+- **CRITICAL: Always check cluster status before kubectl operations**: Use `ck list cc` to verify cluster is Running, not Hibernating
+- **Wake hibernated clusters**: Use `ck run <cluster-name>` to resume hibernated clusters before attempting kubectl commands
+- **Cluster status verification**: Timeout errors in kubectl often indicate hibernated clusters - always check `ck list cc` first
+- **Cluster startup timing**: After waking a hibernated cluster, wait 3-5 minutes for full startup before attempting kubectl operations
 
 **Konflux Authentication:**
 - Authenticate with: `oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/`
@@ -423,6 +438,50 @@ git show $BUNDLE_COMMIT:rhtap-buildargs.conf | grep "ARG_STAGE_VOLSYNC_IMAGE_PUL
   - Bundle unpacking timeouts (`DeadlineExceeded`)
   - Catalog source connectivity problems
   - Image pull failures from Konflux registry
+
+#### **CRITICAL: Clean Environment Before Testing New Catalogs**
+When testing new FBC/catalog images, **ALWAYS audit and clean existing resources first**:
+
+**Step 1: Audit existing resources**
+```bash
+# Check for old catalog sources that might conflict
+oc get catalogsource -n openshift-marketplace | grep -E "(fbc|test|pr)"
+
+# Check existing subscriptions and their sources
+oc get subs -n openshift-operators -o wide
+
+# Check existing CSVs
+oc get csv -n openshift-operators | grep volsync
+```
+
+**Step 2: Clean conflicting resources BEFORE installing new ones**
+```bash
+# Delete old test catalog sources (keep only the one you want to test)
+oc delete catalogsource <old-test-catalog> -n openshift-marketplace
+
+# Delete existing subscription if switching catalog sources
+oc delete subscription.operators.coreos.com <operator-name> -n openshift-operators
+
+# Delete existing CSV to force clean installation
+oc delete csv <old-csv-name> -n openshift-operators
+```
+
+**Step 3: Verify clean state before proceeding**
+```bash
+# Ensure only your target catalog source exists
+oc get catalogsource -n openshift-marketplace
+
+# Confirm no conflicting CSVs remain
+oc get csv -n openshift-operators | grep volsync
+```
+
+**Why this matters:**
+- **OLM resolver picks the "best" version** across ALL available catalogs, not just your target catalog
+- **Leftover resources from previous testing** can cause version conflicts and wrong installations
+- **You may think you're testing new images** when you're actually testing old ones from conflicting catalogs
+- **Always verify the actual installed version** matches what you expect from your target catalog
+
+**Key lesson:** Never assume a clean environment - always audit first, then clean, then install.
 
 #### Creating OLM Subscriptions for VolSync from FBC
 - **Always ask user for**:
