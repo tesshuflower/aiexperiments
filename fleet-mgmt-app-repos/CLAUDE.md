@@ -88,6 +88,11 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 6. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
 7. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
 8. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
+9. **CRITICAL FIX**: Monitor scripts MUST stop immediately when terminal states are reached:
+   - **PipelineRuns**: Stop on "Succeeded", "Failed", "Completed", "Cancelled" - do NOT continue monitoring after these states
+   - **PRs**: Stop on "MERGED", "CLOSED" 
+   - **Workflows**: Stop on "completed", "failure", "cancelled"
+   - Add explicit break statements after detecting terminal states to prevent continued monitoring and authentication errors
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
