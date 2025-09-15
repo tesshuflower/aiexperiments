@@ -199,6 +199,19 @@ fi
   - **Mixed dependency contamination**: Flag immediately with "⚠️ WARNING: UNUSUAL KONFLUX REFERENCES PR BEHAVIOR DETECTED"
   - **Lesson learned from PR #291**: Automated tooling can incorrectly mix unrelated dependency updates into Konflux references PRs
 
+#### OpenShift CI Cherry-pick Process
+- **Format**: `/cherry-pick <branch-name>`
+- **Usage**: Add separate comments for each target branch
+- **Timing**: Can be added before or after PR merge
+- **Automation**: OpenShift CI bot automatically creates cherry-pick PRs
+- **Standard release branches**: `release-2.12`, `release-2.13`, `release-2.14`
+- **Example**:
+  ```
+  /cherry-pick release-2.12
+  /cherry-pick release-2.13
+  /cherry-pick release-2.14
+  ```
+
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
