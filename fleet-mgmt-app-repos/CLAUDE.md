@@ -276,8 +276,19 @@ When a konflux PR needs rebasing:
 1. Clone the repo if not already cloned
 2. Checkout the PR branch with `gh pr checkout <PR_NUMBER>`
 3. Fetch and rebase against the target branch: `git fetch origin <target-branch> && git rebase origin/<target-branch>`
-4. If merge conflicts occur, use `go mod tidy` to resolve go.sum conflicts rather than editing directly
-5. Force push: `git push --force-with-lease origin <branch-name>`
+4. **⚠️ CRITICAL**: After rebasing, ALWAYS verify file changes with `gh pr diff <PR_NUMBER> --name-only`
+5. **Check for contamination**: Ensure only expected files are modified:
+   - Konflux digest updates: ONLY `.tekton/*.yaml` files
+   - Dependency updates: ONLY `go.mod`, `go.sum`, or specific package files
+   - **NEVER**: Mixed changes (e.g., `yq` submodule + `.tekton/*.yaml`)
+6. **If contamination detected**:
+   - `git reset --soft HEAD~1` (uncommit)
+   - `git restore --staged <unwanted-file>` (unstage contamination)
+   - `git restore <unwanted-file>` (restore to clean state)
+   - `git commit -s -S -m "original message"` (clean commit)
+7. If merge conflicts occur, use `go mod tidy` to resolve go.sum conflicts rather than editing directly
+8. Force push: `git push --force-with-lease origin <branch-name>`
+9. **Verify final result**: `gh pr diff <PR_NUMBER> --name-only` to confirm only intended files
 
 #### Common PR Issues
 - **Kubernetes v0.34.0 dependency conflicts**: PRs updating to Kubernetes v0.34.0 fail due to structured-merge-diff v4/v6 incompatibility with openshift/client-go. These require `/hold` comments until openshift/client-go supports v6.
