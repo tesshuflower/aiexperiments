@@ -81,11 +81,12 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 #### Monitoring Workflows
 **IMPORTANT**: When user asks to monitor anything (PRs, workflows, deployments, builds, etc.):
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
-2. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
-3. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
-4. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
-5. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
-6. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
+2. **Test the command first**: Before setting up monitoring, run the core command once to verify authentication, connectivity, and that the resource exists
+3. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
+4. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
+5. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
+6. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
+7. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
@@ -137,6 +138,51 @@ while true; do
 done
 ```
 
+#### Error Handling for Monitoring Scripts
+**CRITICAL**: All monitoring scripts must include proper error handling for authentication failures and persistent errors:
+
+```bash
+# Add error counter and max retries
+ERROR_COUNT=0
+MAX_ERRORS=3
+
+# In the monitoring loop, track consecutive errors
+if [ $? -ne 0 ] || [[ "$CURRENT_STATUS" == "Error" ]] || [[ -z "$CURRENT_STATUS" ]]; then
+  ERROR_COUNT=$((ERROR_COUNT + 1))
+  echo "Error getting status (attempt $ERROR_COUNT/$MAX_ERRORS)"
+  
+  # Check if it's an authentication error specifically
+  if echo "$OUTPUT" | grep -q "Unauthorized\|must be logged in\|authentication"; then
+    notify_user "Authentication failure detected while monitoring. Please re-authenticate and restart monitoring." "Authentication Error"
+    echo "❌ Monitoring stopped due to authentication failure"
+    break
+  fi
+  
+  if [ $ERROR_COUNT -ge $MAX_ERRORS ]; then
+    notify_user "Monitoring failed after $MAX_ERRORS consecutive errors. Please check authentication/connectivity." "Monitoring Error"
+    echo "❌ Monitoring stopped due to persistent errors"
+    break
+  fi
+  
+  # For auth errors, don't wait the full interval - check again in 30 seconds
+  if [ $ERROR_COUNT -gt 0 ]; then
+    echo "Next retry in 30 seconds..."
+    sleep 30
+    continue
+  fi
+else
+  ERROR_COUNT=0  # Reset on successful status check
+fi
+```
+
+**Requirements for all monitoring scripts:**
+- Immediately stop and notify on authentication errors (don't retry)
+- For other errors, retry with 30-second intervals instead of full monitoring interval
+- Stop monitoring after 3 consecutive non-auth errors
+- Notify user about specific error types (auth vs connectivity)
+- Reset error counter on successful status checks
+- Include repository name and URLs in all notifications
+
 ### Pull Request Workflows
 - Create PR: Standard process with auto-generated descriptions
 - Review checklist: Code review, tests pass, documentation updated
@@ -146,6 +192,7 @@ done
 - Special attention: Highlight PRs with "konflux-nudge" label when reviewing automated PRs
 - When showing PR diffs: Always use --color=always flag for colored output
 - When approving PRs: Add comment with "/approve" on one line and "/lgtm" on the next line
+- **⚠️ CRITICAL WARNING**: Always flag "konflux references" PRs that modify non-Tekton files - these should ONLY update .tekton/*.yaml files, never submodules or other dependencies
 
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
