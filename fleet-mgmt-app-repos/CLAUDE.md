@@ -83,10 +83,11 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
 2. **Test the command first**: Before setting up monitoring, run the core command once to verify authentication, connectivity, and that the resource exists
 3. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
-4. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
-5. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
-6. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
-7. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
+4. **CRITICAL**: When setting up monitoring, ALWAYS specify the core command BEFORE starting monitoring - this is essential context the user needs.
+5. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
+6. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
+7. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
+8. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
@@ -192,7 +193,11 @@ fi
 - Special attention: Highlight PRs with "konflux-nudge" label when reviewing automated PRs
 - When showing PR diffs: Always use --color=always flag for colored output
 - When approving PRs: Add comment with "/approve" on one line and "/lgtm" on the next line
-- **⚠️ CRITICAL WARNING**: Always flag "konflux references" PRs that modify non-Tekton files - these should ONLY update .tekton/*.yaml files, never submodules or other dependencies
+- **⚠️ CRITICAL WARNING**: Always flag "konflux references" PRs that modify non-Tekton files - these should ONLY update .tekton/*.yaml files
+  - **Konflux references PRs** (title: "chore(deps): update konflux references") must ONLY contain `.tekton/*.yaml` changes
+  - **Forbidden in Konflux references PRs**: `yq/` submodules, `rpms.lock.yaml`, `go.mod/go.sum`, or any other non-Tekton files
+  - **Mixed dependency contamination**: Flag immediately with "⚠️ WARNING: UNUSUAL KONFLUX REFERENCES PR BEHAVIOR DETECTED"
+  - **Lesson learned from PR #291**: Automated tooling can incorrectly mix unrelated dependency updates into Konflux references PRs
 
 ### Repository Display
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
