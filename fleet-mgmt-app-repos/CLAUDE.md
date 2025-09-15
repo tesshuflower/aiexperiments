@@ -577,3 +577,11 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
    - `ApiException` = Cluster/infrastructure problem
    - Ansible task failures = Functional issues that need investigation
 - **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
+
+## Git Commit Requirements
+
+- **ALWAYS use signed commits**: All git commits MUST include both `-s` and `-S` flags
+  - `-s`: Adds "Signed-off-by" line to commit message
+  - `-S`: Signs the commit with GPG signature
+  - **Command format**: `git commit -s -S -m "commit message"`
+  - **Required for all commits**: This applies to all repositories and all types of commits
