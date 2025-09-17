@@ -102,6 +102,13 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
    - **API FAILURE DETECTION**: Check for authentication errors, rate limits, network issues - notify immediately, don't fail silently
    - **Consecutive failure counter**: Track failed API calls, send alert after 3 consecutive failures
    - **Heartbeat notifications**: Send "still monitoring" notification every 30 minutes to prove script is alive
+   - **DETAILED NOTIFICATIONS**: All notifications MUST include repository name, PR number, direct GitHub link, and context
+   - **Notification format example**: 
+     ```
+     volsync-operator-product-build PR #293 has been MERGED! 🚀
+     https://github.com/stolostron/volsync-operator-product-build/pull/293
+     CPE label update - changes now in release-0.12 branch
+     ```
    - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
