@@ -84,7 +84,7 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 2. **Test the command first**: Before setting up monitoring, run the core command once to verify authentication, connectivity, and that the resource exists
 3. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
 4. **CRITICAL**: When setting up monitoring, ALWAYS specify the core command BEFORE starting monitoring - this is essential context the user needs.
-5. **Give monitoring summary**: Provide summary including repo name, PR link, interval and notification method, then ask if should proceed (user will specify different interval if needed)
+5. **MANDATORY CONFIRMATION**: ALWAYS provide monitoring summary including repo name, PR link, interval and notification method, then ASK FOR CONFIRMATION before starting - user must explicitly approve with "yes" or similar
 6. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
 7. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
 8. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
