@@ -93,11 +93,16 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
    - **PRs**: Stop on "MERGED", "CLOSED" 
    - **Workflows**: Stop on "completed", "failure", "cancelled"
    - Add explicit break statements after detecting terminal states to prevent continued monitoring and authentication errors
-10. **TIMEOUT PROTECTION**: All monitoring scripts MUST include timeout logic to prevent infinite running:
+10. **TIMEOUT PROTECTION & ERROR HANDLING**: All monitoring scripts MUST include robust error handling:
    - **PR Monitors**: Maximum 48 hours, then auto-stop with timeout notification
    - **PipelineRuns**: Maximum 4 hours (most should complete in 1-2 hours)
    - **Background Cleanup**: Sessions accumulate many background monitors - add timeout checks to prevent resource drain
    - **Implementation**: Track start time, check elapsed time each cycle, stop with notification when limit exceeded
+   - **CRITICAL ERROR HANDLING**: Always wrap gh/oc commands in error checking - if command fails 3 times in a row, notify user about script failure and exit
+   - **API FAILURE DETECTION**: Check for authentication errors, rate limits, network issues - notify immediately, don't fail silently
+   - **Consecutive failure counter**: Track failed API calls, send alert after 3 consecutive failures
+   - **Heartbeat notifications**: Send "still monitoring" notification every 30 minutes to prove script is alive
+   - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
 
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
