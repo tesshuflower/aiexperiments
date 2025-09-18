@@ -79,6 +79,8 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - Run CI: `gh workflow run ci.yml`
 
 #### Monitoring Workflows
+**DEFAULT: USE FOREGROUND MONITORING** - Unless user specifically requests "in background"
+
 **IMPORTANT**: When user asks to monitor anything (PRs, workflows, deployments, builds, etc.):
 1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
 2. **Test the command first**: Before setting up monitoring, run the core command once to verify authentication, connectivity, and that the resource exists
@@ -110,6 +112,28 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
      CPE label update - changes now in release-0.12 branch
      ```
    - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
+
+#### Monitoring Mode Selection
+**DEFAULT BEHAVIOR**: Use foreground monitoring unless user specifically requests background
+
+**User commands and responses:**
+- "monitor PR #123" → **Foreground monitoring** (default)
+- "monitor PipelineRun xyz" → **Foreground monitoring** (default)
+- "monitor PR #123 in background" → **Background monitoring** (explicit request)
+- "monitor PipelineRun xyz in the background" → **Background monitoring** (explicit request)
+
+**Foreground monitoring benefits:**
+- ✅ No system reminder spam from completed processes
+- ✅ Immediate error visibility (auth, syntax, connectivity)
+- ✅ Real-time status updates during execution
+- ✅ Clean process management - no zombie processes
+- ✅ Session blocks but provides reliable, spam-free monitoring
+
+**Background monitoring trade-offs:**
+- ✅ Allows parallel work during long-running monitoring
+- ❌ Creates persistent system reminder spam
+- ❌ Authentication errors may fail silently
+- ❌ Process cleanup issues can accumulate
 
 **CRITICAL: Bash Syntax Fix for Heartbeat Messages**:
 - **BROKEN**: `"Still monitoring ($(($ELAPSED/3600))h ${$(($ELAPSED%3600/60))}m elapsed)"`
