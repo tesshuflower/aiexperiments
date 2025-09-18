@@ -117,6 +117,12 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - **Issue**: Nested `$()` substitution requires proper syntax - use `$((($ELAPSED%3600)/60))` not `${$(($ELAPSED%3600/60))}`
 - **Always test**: Validate bash arithmetic syntax before deploying monitoring scripts
 
+**Status Reporting Conventions**:
+- ✅ **Green checkmark**: Monitoring worked correctly AND resource completed successfully
+- ❌ **Red X**: Either monitoring failed OR the monitored resource failed
+- 🔄 **In progress**: Still actively monitoring
+- **Never use green checkmarks for failed outcomes** - this is misleading to users
+
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
 # Function to send notification based on OS and Slack integration
@@ -321,6 +327,50 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - Extract credentials from user's local ~/.docker/config.json and patch cluster pull secret
 - Verify credentials are added: `kubectl get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys[]'`
 - SECURITY: Always clean up temporary files containing credentials: `rm -f /tmp/*dockerconfig*.json`
+
+#### Retriggering Konflux Component Builds
+When a Konflux component needs to rebuild (e.g., after failures or to pick up latest commits):
+
+**Step 1: Verify if retrigger is needed**
+```bash
+# Check component's last built commit
+oc -n <namespace> get component <component-name> -o jsonpath='{.status.lastBuiltCommit}'
+
+# Check latest commit on target branch (usually main)
+gh api repos/<org>/<repo>/commits/<branch> --jq '.sha'
+
+# If commits don't match, retrigger is needed
+```
+
+**Step 2: Apply trigger annotation**
+```bash
+oc -n <namespace> annotate component/<component-name> build.appstudio.openshift.io/request=trigger-pac-build
+```
+
+**Step 3: Verify new PipelineRun starts**
+```bash
+# Wait 30-60 seconds, then check for new PipelineRuns
+oc -n <namespace> get pipelineruns --sort-by=.metadata.creationTimestamp | grep <component-pattern> | tail -3
+```
+
+**Example for FBC components:**
+```bash
+# Check FBC 4.17 component
+oc -n volsync-tenant get component volsync-fbc-4-17 -o jsonpath='{.status.lastBuiltCommit}'
+gh api repos/stolostron/volsync-operator-product-fbc/commits/main --jq '.sha'
+
+# Retrigger if needed
+oc -n volsync-tenant annotate component/volsync-fbc-4-17 build.appstudio.openshift.io/request=trigger-pac-build
+
+# Monitor new PipelineRun
+oc -n volsync-tenant get pipelineruns --sort-by=.metadata.creationTimestamp | grep "volsync-fbc-4-17-on-push" | tail -3
+```
+
+**Key points:**
+- **Always verify commit mismatch first** - don't retrigger unnecessarily
+- **Annotation is consumed automatically** - it disappears after triggering
+- **Wait for new PipelineRun creation** - may take 30-60 seconds
+- **Monitor the new build** - set up proper monitoring for completion
 
 #### Rebasing Konflux PRs
 When a konflux PR needs rebasing:
