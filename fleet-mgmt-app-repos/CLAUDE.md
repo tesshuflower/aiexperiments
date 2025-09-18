@@ -338,6 +338,9 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - CRITICAL: Ensure volsync repository branch matches the operator version being tested
 - Before running e2e tests, verify you're on the correct release branch (e.g., release-0.12 for v0.12.2 operator)
 - Check git branch and ensure it's up-to-date: `git branch --show-current && git fetch origin && git status`
+- **IMPORTANT**: Full e2e test suite (`--selector=suite=volsync-e2e`) automatically includes `deploy-prereqs` as the first test
+- **NEVER run deploy-prereqs separately** when running the full suite - it's already included and runs first in sequential stage
+- Check custom-scorecard-tests/config-downstream.yaml to see test execution order and which tests are included in each suite
 
 **Verifying Operator Installation:**
 - Check CSV status: `kubectl get csv <csv-name> -n openshift-operators`
