@@ -696,6 +696,12 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
    - Ansible task failures = Functional issues that need investigation
 - **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
 
+**CRITICAL: Base Repository Protection**:
+- **NEVER check out branches from other repositories in the base aiexperiments repo** without explicit user permission
+- When working with PR branches, always `cd` into the specific repository directory first (e.g., `cd volsync-operator-product-build`)
+- **Always verify you're in the correct repository** with `git remote -v` before any git operations
+- The base repo should stay on `main` branch unless user explicitly requests otherwise
+
 ## Git Commit Requirements
 
 - **ALWAYS use signed commits**: All git commits MUST include both `-s` and `-S` flags
