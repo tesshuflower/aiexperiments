@@ -112,6 +112,14 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
      CPE label update - changes now in release-0.12 branch
      ```
    - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
+11. **CRITICAL: Bash Tool Timeout Must Match Script Duration**: When running foreground monitoring scripts:
+   - **ALWAYS set Bash tool timeout longer than script's internal timeout**
+   - **Deploy-fbc-operator tests**: Use `"timeout": 3600000` (1 hour) or longer for 30-minute tests
+   - **PR monitors**: Use `"timeout": 172800000` (48 hours) for long-running PR monitoring
+   - **Never promise one timeout and set a shorter one** - this creates inconsistent expectations
+   - **Script internal timeout**: Set via MAX_DURATION variable in script
+   - **Bash tool timeout**: Set via timeout parameter in Bash tool call
+   - **Rule**: Bash tool timeout ≥ Script internal timeout + 10 minutes buffer
 
 #### Monitoring Mode Selection
 **DEFAULT BEHAVIOR**: Use foreground monitoring unless user specifically requests background
@@ -377,7 +385,39 @@ oc -n <namespace> annotate component/<component-name> build.appstudio.openshift.
 oc -n <namespace> get pipelineruns --sort-by=.metadata.creationTimestamp | grep <component-pattern> | tail -3
 ```
 
+#### Retriggering IntegrationTestScenarios
+When IntegrationTestScenarios (e.g., deploy-fbc-operator tests) fail and need to be re-run:
+
+**Step 1: Find the appropriate snapshot**
+```bash
+# Get latest snapshots for the component/application
+oc -n <namespace> get snapshots --sort-by=.metadata.creationTimestamp | grep <component-pattern> | tail -3
+```
+
+**Step 2: Apply trigger label to snapshot**
+```bash
+# Label the snapshot to retrigger ALL IntegrationTestScenarios
+oc -n <namespace> label snapshot <snapshot-name> test.appstudio.openshift.io/run=all
+```
+
+**Step 3: Verify new test PipelineRuns start**
+```bash
+# Wait 30-60 seconds, then check for new IntegrationTestScenario PipelineRuns
+oc -n <namespace> get pipelineruns -l appstudio.openshift.io/component=<component-name> --sort-by=.metadata.creationTimestamp | tail -5
+```
+
 **Example for FBC components:**
+- Component: `volsync-fbc-4-14`
+- Latest snapshot: `volsync-fbc-4-14-xyz123`
+- Command: `oc -n volsync-tenant label snapshot volsync-fbc-4-14-xyz123 test.appstudio.openshift.io/run=all`
+- Result: Triggers both `volsync-fbc-operator-4-14-*` and `volsync-fbc-standard-4-14-*` tests
+
+**Key notes:**
+- **Component retriggering**: Use annotation to rebuild from latest commit
+- **IntegrationTestScenario retriggering**: Use snapshot labeling to re-run tests
+- **Always verify what needs retriggering first** - don't trigger unnecessarily
+
+**Component Retrigger Example:**
 ```bash
 # Check FBC 4.17 component
 oc -n volsync-tenant get component volsync-fbc-4-17 -o jsonpath='{.status.lastBuiltCommit}'
