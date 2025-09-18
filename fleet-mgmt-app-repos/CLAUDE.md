@@ -332,8 +332,13 @@ When a konflux PR needs rebasing:
    - `git restore <unwanted-file>` (restore to clean state)
    - `git commit -s -S -m "original message"` (clean commit)
 7. If merge conflicts occur, use `go mod tidy` to resolve go.sum conflicts rather than editing directly
-8. Force push: `git push --force-with-lease origin <branch-name>`
-9. **Verify final result**: `gh pr diff <PR_NUMBER> --name-only` to confirm only intended files
+8. **⚠️ CRITICAL - Check for skipped commits**: If rebase shows `warning: skipped previously applied commit`, the changes may already exist in target branch:
+   - Check the warning: `warning: skipped previously applied commit <sha>`
+   - **BEFORE force pushing**: Verify `gh pr diff <PR_NUMBER>` still shows changes
+   - **If diff is empty**: The changes are already in target branch - comment on PR to close instead of force pushing
+   - **Never force push empty changes** - this creates PRs with no actual differences
+9. Force push: `git push --force-with-lease origin <branch-name>`
+10. **Verify final result**: `gh pr diff <PR_NUMBER> --name-only` to confirm only intended files
 
 #### Common PR Issues
 - **Kubernetes v0.34.0 dependency conflicts**: PRs updating to Kubernetes v0.34.0 fail due to structured-merge-diff v4/v6 incompatibility with openshift/client-go. These require `/hold` comments until openshift/client-go supports v6.
