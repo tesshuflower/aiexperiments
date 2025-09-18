@@ -117,6 +117,24 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
    - **Deploy-fbc-operator tests**: Use `"timeout": 3600000` (1 hour) or longer for 30-minute tests
    - **PR monitors**: Use `"timeout": 172800000` (48 hours) for long-running PR monitoring
    - **Never promise one timeout and set a shorter one** - this creates inconsistent expectations
+
+#### **CRITICAL: Foreground vs Background Monitoring**
+**When user asks for "foreground monitoring" with notifications:**
+- **FOREGROUND MONITORING**: Run the actual command directly with appropriate timeout, show real-time output as it streams to user
+- **BACKGROUND MONITORING**: Create a script that runs in background and only notifies on completion
+- **User expectation for "foreground"**: They want to see real-time progress AND get notified when done
+- **NEVER create monitoring scripts when user asks for foreground monitoring** - run the command directly
+- **Example - CORRECT foreground approach**:
+  ```bash
+  # Run the actual command with long timeout and tee to log file
+  unset KUBECONFIG && export KUBECONFIG=/path/to/config && ./command 2>&1 | tee /tmp/logfile.log
+  ```
+- **Example - WRONG approach for foreground**:
+  ```bash
+  # Creating a script that runs in background - user won't see real-time output
+  bash /tmp/monitoring_script.sh
+  ```
+- **Key lesson**: Monitoring scripts are for background execution. Foreground monitoring means direct execution with real-time output visibility.
    - **Script internal timeout**: Set via MAX_DURATION variable in script
    - **Bash tool timeout**: Set via timeout parameter in Bash tool call
    - **Rule**: Bash tool timeout ≥ Script internal timeout + 10 minutes buffer
@@ -834,3 +852,4 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
   - `-S`: Signs the commit with GPG signature
   - **Command format**: `git commit -s -S -m "commit message"`
   - **Required for all commits**: This applies to all repositories and all types of commits
+- when outputting to a log always use a unique name
