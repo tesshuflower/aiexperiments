@@ -111,6 +111,12 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
      ```
    - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
 
+**CRITICAL: Bash Syntax Fix for Heartbeat Messages**:
+- **BROKEN**: `"Still monitoring ($(($ELAPSED/3600))h ${$(($ELAPSED%3600/60))}m elapsed)"`
+- **FIXED**: `"Still monitoring ($(($ELAPSED/3600))h $((($ELAPSED%3600)/60))m elapsed)"`
+- **Issue**: Nested `$()` substitution requires proper syntax - use `$((($ELAPSED%3600)/60))` not `${$(($ELAPSED%3600/60))}`
+- **Always test**: Validate bash arithmetic syntax before deploying monitoring scripts
+
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
 # Function to send notification based on OS and Slack integration
@@ -338,7 +344,9 @@ When a konflux PR needs rebasing:
    - **If diff is empty**: The changes are already in target branch - comment on PR to close instead of force pushing
    - **Never force push empty changes** - this creates PRs with no actual differences
 9. Force push: `git push --force-with-lease origin <branch-name>`
-10. **Verify final result**: `gh pr diff <PR_NUMBER> --name-only` to confirm only intended files
+10. **⚠️ CRITICAL - Verify after force push**: Check `gh pr diff <PR_NUMBER>` again after pushing to confirm changes still exist on GitHub
+11. **If PR auto-closes**: GitHub will automatically close PRs with no net changes - this confirms the changes were already in target branch
+12. **Final verification**: `gh pr diff <PR_NUMBER> --name-only` to confirm only intended files (if PR remains open)
 
 #### Common PR Issues
 - **Kubernetes v0.34.0 dependency conflicts**: PRs updating to Kubernetes v0.34.0 fail due to structured-merge-diff v4/v6 incompatibility with openshift/client-go. These require `/hold` comments until openshift/client-go supports v6.
