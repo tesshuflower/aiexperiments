@@ -338,6 +338,8 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - **Wake hibernated clusters**: Use `ck run <cluster-name>` to resume hibernated clusters before attempting kubectl commands
 - **Cluster status verification**: Timeout errors in kubectl often indicate hibernated clusters - always check `ck list cc` first
 - **Cluster startup timing**: After waking a hibernated cluster, wait 3-5 minutes for full startup before attempting kubectl operations
+- **CRITICAL: Wait for "Running" status**: Never proceed with cluster operations until `ck list cc` shows "Running" status, not "PausingForC", "WaitingForC", or other transitional states
+- **Background execution for waits**: Use `run_in_background=true` for long sleep commands or monitoring loops to avoid timeouts
 
 **Konflux Authentication:**
 - Authenticate with: `oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/`
