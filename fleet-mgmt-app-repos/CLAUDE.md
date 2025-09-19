@@ -691,7 +691,7 @@ spec:
   3. Create service account: `./hack/ensure-volsync-test-runner.sh`
   4. Install operator-sdk: `make operator-sdk` (installs to `./bin/operator-sdk`)
 - **Deploy prerequisites**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
-- **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+- **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner` - ALWAYS RUN IN BACKGROUND (takes 30-60 minutes)
 - **Run single test**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=<test-name.yml> -o text --wait-time=300s --skip-cleanup=false --service-account=volsync-test-runner`
 - **Usage**: Say "run volsync e2e tests" - Claude will help execute the appropriate tests
 
@@ -707,7 +707,7 @@ spec:
 
 **Steps**:
 1. Deploy prerequisites: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
-2. Run all tests: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+2. Run all tests: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner` - ALWAYS RUN IN BACKGROUND (takes 30-60 minutes)
 
 ### 2. Testing Konflux FBC Images
 
@@ -803,7 +803,7 @@ oc login --kubeconfig=.kube/config-<cluster-name> <api-url> -u <username> -p "<p
 # List available cluster pools
 ck list cp
 
-# Create new cluster from pool
+# Create new cluster from pool - ALWAYS RUN IN BACKGROUND (takes 20-30 minutes)
 ck new <pool-name> <cluster-claim-name>
 
 # Example: Create OpenShift 4.18 cluster
@@ -822,7 +822,7 @@ ck current                 # Show current context
 ck use <cluster-name>      # Switch to cluster context
 ck state <cluster-name>    # Check power state
 ck hibernate <cluster>     # Hibernate cluster
-ck run <cluster>           # Resume hibernated cluster
+ck run <cluster>           # Resume hibernated cluster - ALWAYS RUN IN BACKGROUND (takes 3-5 minutes)
 ck console <cluster>       # Open cluster console
 ```
 
