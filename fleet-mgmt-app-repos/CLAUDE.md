@@ -541,6 +541,9 @@ spec:
 
 #### Verifying Snapshots for Stage Releases ⚠️ **COMPREHENSIVE VERIFICATION REQUIRED**
 
+**⚠️ CRITICAL: Always Ask for Release Version First**
+Before working with any snapshots, ALWAYS ask the user which release version they want to test (0.12, 0.13, 0.14, etc.). Never assume a release version. This determines which application snapshots to examine (volsync-0-12, volsync-0-13, volsync-0-14, etc.).
+
 When preparing a release to stage, you need snapshots containing both operator and bundle images. This workflow ensures the snapshot contains consistent, latest builds.
 
 **Step 1: Find Latest Application Snapshots**
