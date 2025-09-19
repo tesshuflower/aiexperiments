@@ -338,6 +338,8 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - **Wake hibernated clusters**: Use `ck run <cluster-name>` to resume hibernated clusters before attempting kubectl commands
 - **Cluster status verification**: Timeout errors in kubectl often indicate hibernated clusters - always check `ck list cc` first
 - **Cluster startup timing**: After waking a hibernated cluster, wait 3-5 minutes for full startup before attempting kubectl operations
+- **CRITICAL: Wait for "Running" status**: Never proceed with cluster operations until `ck list cc` shows "Running" status, not "PausingForC", "WaitingForC", or other transitional states
+- **Background execution for waits**: Use `run_in_background=true` for long sleep commands or monitoring loops to avoid timeouts
 
 **Konflux Authentication:**
 - Authenticate with: `oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/`
@@ -541,6 +543,9 @@ spec:
 
 #### Verifying Snapshots for Stage Releases ⚠️ **COMPREHENSIVE VERIFICATION REQUIRED**
 
+**⚠️ CRITICAL: Always Ask for Release Version First**
+Before working with any snapshots, ALWAYS ask the user which release version they want to test (0.12, 0.13, 0.14, etc.). Never assume a release version. This determines which application snapshots to examine (volsync-0-12, volsync-0-13, volsync-0-14, etc.).
+
 When preparing a release to stage, you need snapshots containing both operator and bundle images. This workflow ensures the snapshot contains consistent, latest builds.
 
 **Step 1: Find Latest Application Snapshots**
@@ -686,7 +691,7 @@ spec:
   3. Create service account: `./hack/ensure-volsync-test-runner.sh`
   4. Install operator-sdk: `make operator-sdk` (installs to `./bin/operator-sdk`)
 - **Deploy prerequisites**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
-- **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+- **Run all e2e tests**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner` - ALWAYS RUN IN BACKGROUND (takes 30-60 minutes)
 - **Run single test**: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=<test-name.yml> -o text --wait-time=300s --skip-cleanup=false --service-account=volsync-test-runner`
 - **Usage**: Say "run volsync e2e tests" - Claude will help execute the appropriate tests
 
@@ -702,7 +707,7 @@ spec:
 
 **Steps**:
 1. Deploy prerequisites: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=test=deploy-prereqs -o text --wait-time=600s --skip-cleanup=false --service-account=volsync-test-runner`
-2. Run all tests: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner`
+2. Run all tests: `./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner` - ALWAYS RUN IN BACKGROUND (takes 30-60 minutes)
 
 ### 2. Testing Konflux FBC Images
 
@@ -793,14 +798,31 @@ ck creds <cluster-name>
 oc login --kubeconfig=.kube/config-<cluster-name> <api-url> -u <username> -p "<password>" --insecure-skip-tls-verify
 ```
 
+**Creating new clusters:**
+```bash
+# List available cluster pools
+ck list cp
+
+# Create new cluster from pool - ALWAYS RUN IN BACKGROUND (takes 20-30 minutes)
+ck new <pool-name> <cluster-claim-name>
+
+# Example: Create OpenShift 4.18 cluster
+ck new app-prow-small-aws-418-0-west1 my-cluster-name
+
+# Check cluster creation status
+ck list cc
+```
+
 **Common cluster management:**
 ```bash
 ck list                    # List available clusters
+ck list cc                 # List cluster claims (shows creation status)
+ck list cp                 # List cluster pools (shows available pool types)
 ck current                 # Show current context
 ck use <cluster-name>      # Switch to cluster context
 ck state <cluster-name>    # Check power state
 ck hibernate <cluster>     # Hibernate cluster
-ck run <cluster>           # Resume hibernated cluster
+ck run <cluster>           # Resume hibernated cluster - ALWAYS RUN IN BACKGROUND (takes 3-5 minutes)
 ck console <cluster>       # Open cluster console
 ```
 
@@ -837,6 +859,61 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
    - `kubernetes.dynamic.exceptions.NotFoundError: 404` = Kubernetes API connectivity issue
    - `ApiException` = Cluster/infrastructure problem
    - Ansible task failures = Functional issues that need investigation
+
+## VolSync Bundle Testing Workflow
+
+### Quick Command Format
+When user wants to test a new volsync bundle version, they can use this format:
+**"Test new volsync bundle version with full e2e validation"**
+
+### Required Runtime Questions
+When user requests testing new volsync bundle version, ALWAYS ask these questions:
+
+1. **What is the new volsync bundle version?** (e.g., v0.13.1, v0.14.0, etc.)
+
+2. **Which OpenShift version catalog should I test?** (e.g., 4-18, 4-19, etc. - determines both FBC catalog and cluster compatibility)
+
+3. **Which cluster should I use for testing?**
+   - Do you want me to use an existing cluster from your kubeconfig files?
+   - Should I check cluster status first (if using cluster-keeper)?
+
+4. **What's the current operator state on the test cluster?**
+   - Is there an existing volsync operator installed that needs cleanup?
+   - Should I start with a clean slate?
+
+5. **Which PR number should I look for the FBC snapshot on Konflux?**
+
+### Testing Workflow Steps
+Based on the answers above, execute this complete workflow:
+
+1. **FBC Catalog Validation**
+   - Validate specific catalog directory (catalog-X-XX) using `make validate-catalog`
+   - Verify new bundle version is present in bundles/ directory
+
+2. **Konflux FBC Image Testing**
+   - Find FBC snapshot using PR labels on Konflux
+   - Get FBC image from snapshot for the specified OpenShift version
+   - Create test CatalogSource with the Konflux FBC image
+
+3. **Cluster Preparation**
+   - Set correct KUBECONFIG for target cluster
+   - Check cluster status (wake if hibernated)
+   - Clean existing volsync resources if needed
+   - Ensure clean environment before installing new catalog
+
+4. **Operator Deployment**
+   - Deploy test CatalogSource to cluster
+   - Create volsync subscription targeting the new bundle version
+   - Verify operator installation and CSV status
+
+5. **E2E Testing**
+   - Navigate to volsync repo directory
+   - Ensure correct release branch for testing
+   - Run full scorecard test suite
+   - Analyze test results for pass/fail status
+
+The answers determine FBC catalog directory, compatible cluster selection, Konflux snapshot lookup, cleanup procedures, and full scorecard test execution.
+
 - **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
 
 **CRITICAL: Base Repository Protection**:
