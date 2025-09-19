@@ -798,9 +798,26 @@ ck creds <cluster-name>
 oc login --kubeconfig=.kube/config-<cluster-name> <api-url> -u <username> -p "<password>" --insecure-skip-tls-verify
 ```
 
+**Creating new clusters:**
+```bash
+# List available cluster pools
+ck list cp
+
+# Create new cluster from pool
+ck new <pool-name> <cluster-claim-name>
+
+# Example: Create OpenShift 4.18 cluster
+ck new app-prow-small-aws-418-0-west1 my-cluster-name
+
+# Check cluster creation status
+ck list cc
+```
+
 **Common cluster management:**
 ```bash
 ck list                    # List available clusters
+ck list cc                 # List cluster claims (shows creation status)
+ck list cp                 # List cluster pools (shows available pool types)
 ck current                 # Show current context
 ck use <cluster-name>      # Switch to cluster context
 ck state <cluster-name>    # Check power state
