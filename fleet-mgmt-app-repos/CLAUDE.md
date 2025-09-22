@@ -837,6 +837,99 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
    - `kubernetes.dynamic.exceptions.NotFoundError: 404` = Kubernetes API connectivity issue
    - `ApiException` = Cluster/infrastructure problem
    - Ansible task failures = Functional issues that need investigation
+
+### **CRITICAL FIX: E2E Test Monitoring Script Error Handling**
+
+When running VolSync e2e tests with monitoring, **ALWAYS use proper error handling for result analysis**:
+
+**❌ BROKEN (causes math expression errors):**
+```bash
+PASS_COUNT=$(grep -c "State: pass" /tmp/logfile.log)
+FAIL_COUNT=$(grep -c "State: fail" /tmp/logfile.log)
+PASS_RATE=$((PASS_COUNT * 100 / TOTAL_COUNT))  # FAILS if counts are empty
+```
+
+**✅ FIXED (safe with proper defaults):**
+```bash
+PASS_COUNT=$(grep -c "State: pass" /tmp/logfile.log 2>/dev/null || echo "0")
+FAIL_COUNT=$(grep -c "State: fail" /tmp/logfile.log 2>/dev/null || echo "0")
+TOTAL_COUNT=$(($PASS_COUNT + $FAIL_COUNT))
+
+# Safe arithmetic with validation
+if [ $TOTAL_COUNT -gt 0 ]; then
+  PASS_RATE=$((PASS_COUNT * 100 / TOTAL_COUNT))
+else
+  PASS_RATE=0
+fi
+```
+
+**Key fixes:**
+- Add `2>/dev/null || echo "0"` to all grep commands for safe defaults
+- Validate `TOTAL_COUNT > 0` before division to prevent divide-by-zero
+- Always use `|| echo "0"` pattern when counting from potentially non-existent files
+- Separate result analysis from test execution phase
+
+**Lesson learned**: Never perform arithmetic on potentially empty variables from live log files.
+
+### **CRITICAL FIX: Release Monitoring Status Field Selection**
+
+When monitoring Konflux releases, **ALWAYS use the correct status field to get accurate real-time status**:
+
+**❌ BROKEN (reports false failures):**
+```bash
+# WRONG - Released condition status is always True/False, not the actual status
+STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
+if [[ "$STATUS" == "False" ]]; then
+    echo "❌ $release failed"  # INCORRECT - False just means "not yet released"
+fi
+```
+
+**❌ ALSO BROKEN (field doesn't exist):**
+```bash
+# WRONG - releases don't have a status.phase field
+STATUS=$(oc get release $release -o jsonpath='{.status.phase}')  # Returns empty!
+```
+
+**✅ CORRECT (matches RELEASE STATUS column exactly):**
+```bash
+# CORRECT - use Released condition reason for actual status
+STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}')
+if [[ "$STATUS" == "Succeeded" ]]; then
+    echo "✅ $release completed successfully"
+elif [[ "$STATUS" == "Failed" ]]; then
+    echo "❌ $release failed"
+else
+    echo "🔄 $release status: ${STATUS:-Progressing}"
+fi
+```
+
+**Key discovery:**
+- **`status.conditions[?(@.type=="Released")].reason`** = The exact value shown in RELEASE STATUS column
+- **Possible values**: "Progressing", "Succeeded", "Failed"
+- **NOT** the `.status` field of the condition (which is True/False)
+- **NOT** `status.phase` (which doesn't exist for releases)
+
+**Why previous approaches failed:**
+1. **Released condition `.status`**: Always True/False, not the actual release status
+2. **`status.phase`**: Doesn't exist for Release resources (returns empty)
+3. **Misunderstanding**: The RELEASE STATUS column comes from the condition's `.reason`, not `.status`
+
+**Correct monitoring pattern:**
+```bash
+# Test the correct field first
+STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}')
+echo "DEBUG: Release $release reason: '$STATUS'"
+
+# Then monitor based on reason values
+case "$STATUS" in
+    "Succeeded") echo "✅ $release completed successfully" ;;
+    "Failed") echo "❌ $release failed" ;;
+    *) echo "🔄 $release status: ${STATUS:-Progressing}" ;;
+esac
+```
+
+**Lesson learned**: Always investigate the actual field structure before implementing monitoring. The RELEASE STATUS column in `oc get releases` comes from the Released condition's `.reason` field, not `.status` or `.phase`.
+
 - **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
 
 **CRITICAL: Base Repository Protection**:
