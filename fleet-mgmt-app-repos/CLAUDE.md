@@ -139,6 +139,54 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
    - **Bash tool timeout**: Set via timeout parameter in Bash tool call
    - **Rule**: Bash tool timeout ≥ Script internal timeout + 10 minutes buffer
 
+#### **CRITICAL: Foreground Monitoring with Log Capture**
+**For long-running commands that need result analysis (e.g., VolSync e2e tests):**
+
+**MANDATORY Requirements:**
+1. **Always create unique log file path first** before starting command
+2. **Use simple, tested syntax** - avoid complex command chaining in single bash calls
+3. **Verify log file creation works** with the command structure
+4. **Never lose command output** due to poor syntax
+
+**CORRECT Pattern for Log Capture:**
+```bash
+# Step 1: Create unique log file path
+LOG_FILE="/tmp/command-name-$(date +%Y%m%d-%H%M%S).log"
+
+# Step 2: Run command with simple output redirection
+export KUBECONFIG=/path/to/config
+./command-here > "$LOG_FILE" 2>&1
+
+# Step 3: Analyze results from log file
+grep -c "pass\|fail" "$LOG_FILE"
+```
+
+**WRONG - Complex chaining that fails:**
+```bash
+# DON'T DO THIS - complex syntax that breaks
+./command 2>&1 | tee /tmp/file-$(date +%Y%m%d-%H%M%S).log && other-commands
+```
+
+**Specific Examples:**
+
+**VolSync E2E Tests:**
+```bash
+LOG_FILE="/tmp/volsync-e2e-$(date +%Y%m%d-%H%M%S).log"
+./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner > "$LOG_FILE" 2>&1
+```
+
+**Post-Command Analysis Requirements:**
+- Always analyze captured logs for pass/fail counts using: `grep -c "State: pass\|State: fail" "$LOG_FILE"`
+- Provide summary of results from log file
+- Calculate pass rate and identify any failures
+- Never lose test results due to poor command execution
+
+**Key Lessons Learned:**
+- **Test log file creation first** with simple commands when unsure
+- **Don't combine complex operations** in single bash tool calls
+- **Always verify output capture is working** before proceeding
+- **Save results analysis** - logs are essential for understanding what happened
+
 #### Monitoring Mode Selection
 **DEFAULT BEHAVIOR**: Use foreground monitoring unless user specifically requests background
 
