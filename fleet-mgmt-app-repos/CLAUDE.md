@@ -221,6 +221,34 @@ LOG_FILE="/tmp/volsync-e2e-$(date +%Y%m%d-%H%M%S).log"
 - 🔄 **In progress**: Still actively monitoring
 - **Never use green checkmarks for failed outcomes** - this is misleading to users
 
+**CRITICAL: Slack Notification JSON Formatting**:
+- **NEVER use inline JSON with --data "{...}"** when message contains emojis, newlines, or special characters
+- **ALWAYS create temporary JSON file** and use `curl -d @file.json` to avoid escaping issues
+- **Inline approach FAILS** with messages containing: ✅ ❌ 📊 🚀 and `\n` newlines
+- **Correct pattern**:
+  ```bash
+  # Create JSON file to avoid escaping issues
+  SLACK_JSON="/tmp/slack-notification-$$.json"
+  cat > "$SLACK_JSON" << EOF
+{
+  "text": "*Title*\n✅ Passed: $PASS_COUNT\n❌ Failed: $FAIL_COUNT\n📊 Pass Rate: $PASS_RATE%"
+}
+EOF
+  curl -s -X POST -H 'Content-type: application/json' -d @"$SLACK_JSON" "$CLAUDE_SLACK_WEBHOOK_URL" > /dev/null
+  rm -f "$SLACK_JSON"
+  ```
+- **WRONG approach that fails**:
+  ```bash
+  # DON'T DO THIS - inline JSON fails with special characters
+  curl -s -X POST -H 'Content-type: application/json' \
+    --data "{\"text\": \"*Title*\n✅ Passed: $COUNT\"}" \
+    "$CLAUDE_SLACK_WEBHOOK_URL"
+  # Returns: invalid_payload
+  ```
+- **Why it fails**: Bash escaping of emojis and special characters in inline JSON is unreliable
+- **Lesson learned**: Always test Slack notifications work correctly before trusting the script
+- **All monitoring scripts**: Must use the file-based approach for reliable notifications
+
 When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
 ```bash
 # Function to send notification based on OS and Slack integration
