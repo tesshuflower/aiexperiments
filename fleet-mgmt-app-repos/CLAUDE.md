@@ -457,6 +457,37 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - Verify credentials are added: `kubectl get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys[]'`
 - SECURITY: Always clean up temporary files containing credentials: `rm -f /tmp/*dockerconfig*.json`
 
+**⚠️ CRITICAL WARNING: NEVER OVERWRITE CLUSTER PULL SECRETS**
+- **NEVER replace the entire cluster pull secret** - this will break the cluster by removing critical CI registry credentials
+- **ALWAYS merge credentials** using `jq` to preserve existing entries while adding new ones
+- **Required merging pattern**:
+  ```bash
+  # CORRECT - Merges new credentials while preserving existing ones
+  jq -s '.[0] * .[1]' <(oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d) ~/.docker/config.json > /tmp/merged-pull-secret.json
+  oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=/tmp/merged-pull-secret.json
+
+  # WRONG - This replaces everything and breaks the cluster
+  oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=~/.docker/config.json
+  ```
+- **Standard OpenShift pull secrets include critical registries**:
+  - `cloud.openshift.com` - OpenShift cluster services
+  - `quay.io` - Main container registry
+  - `quay-proxy.ci.openshift.org` - CI proxy registry
+  - `quay.io/openshift/ci` - CI builds
+  - `registry.ci.openshift.org` - CI registry
+  - `registry.connect.redhat.com` - Certified operators
+  - `registry.redhat.io` - Red Hat official images
+- **Before modifying pull secrets**:
+  1. Extract and backup current pull secret to `/tmp/original-pull-secret-$(date +%Y%m%d).json`
+  2. List all existing registry credentials: `oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys[]'`
+  3. Verify the merge preserves all original registries
+  4. Test that catalog pods can pull images after the change
+- **If credentials are accidentally removed**:
+  - Catalog pods (redhat-operators, certified-operators, etc.) will enter ImagePullBackOff
+  - Error message: "unauthorized: access to the requested resource is not authorized"
+  - Recovery requires obtaining original pull secret from cluster installation artifacts or Red Hat
+- **ALWAYS use proper jq merging**: `jq -s '.[0] * .[1]'` merges two JSON objects, preserving all keys from both
+
 #### Retriggering Konflux Component Builds
 When a Konflux component needs to rebuild (e.g., after failures or to pick up latest commits):
 
