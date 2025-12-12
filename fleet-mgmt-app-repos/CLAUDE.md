@@ -966,21 +966,25 @@ When running the full VolSync e2e test suite, follow these steps to analyze resu
 
 When running VolSync e2e tests with monitoring, **ALWAYS use proper error handling for result analysis**:
 
-**❌ BROKEN (causes math expression errors):**
+**❌ BROKEN (grep -c causes formatting issues):**
 ```bash
 PASS_COUNT=$(grep -c "State: pass" /tmp/logfile.log)
 FAIL_COUNT=$(grep -c "State: fail" /tmp/logfile.log)
-PASS_RATE=$((PASS_COUNT * 100 / TOTAL_COUNT))  # FAILS if counts are empty
+PASS_RATE=$((PASS_COUNT * 100 / TOTAL_COUNT))  # FAILS with syntax errors
 ```
 
-**✅ FIXED (safe with proper defaults):**
+**✅ CORRECT (use wc -l and force integer conversion):**
 ```bash
-PASS_COUNT=$(grep -c "State: pass" /tmp/logfile.log 2>/dev/null || echo "0")
-FAIL_COUNT=$(grep -c "State: fail" /tmp/logfile.log 2>/dev/null || echo "0")
-TOTAL_COUNT=$(($PASS_COUNT + $FAIL_COUNT))
+# Use wc -l instead of grep -c for reliable counting
+PASS_COUNT=$(grep "State: pass" "$LOG_FILE" 2>/dev/null | wc -l)
+FAIL_COUNT=$(grep "State: fail" "$LOG_FILE" 2>/dev/null | wc -l)
+# Force integer conversion to strip whitespace
+PASS_COUNT=$((PASS_COUNT + 0))
+FAIL_COUNT=$((FAIL_COUNT + 0))
+TOTAL_COUNT=$((PASS_COUNT + FAIL_COUNT))
 
-# Safe arithmetic with validation
-if [ $TOTAL_COUNT -gt 0 ]; then
+# Safe arithmetic with quoted variables
+if [ "$TOTAL_COUNT" -gt 0 ]; then
   PASS_RATE=$((PASS_COUNT * 100 / TOTAL_COUNT))
 else
   PASS_RATE=0
@@ -988,12 +992,11 @@ fi
 ```
 
 **Key fixes:**
-- Add `2>/dev/null || echo "0"` to all grep commands for safe defaults
-- Validate `TOTAL_COUNT > 0` before division to prevent divide-by-zero
-- Always use `|| echo "0"` pattern when counting from potentially non-existent files
-- Separate result analysis from test execution phase
+- **Use `wc -l` not `grep -c`** - grep -c output breaks arithmetic
+- **Force integer conversion: `$((VAR + 0))`** - strips formatting
+- **Quote test variables: `[ "$VAR" -gt 0 ]`** - prevents errors
 
-**Lesson learned**: Never perform arithmetic on potentially empty variables from live log files.
+**Lesson learned**: Always use `wc -l` for counting and force integer conversion.
 
 ### **CRITICAL FIX: Release Monitoring Status Field Selection**
 
