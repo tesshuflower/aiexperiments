@@ -344,51 +344,7 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 
 **⚠️ CRITICAL WARNING: NEVER OVERWRITE CLUSTER PULL SECRETS**
 - **NEVER replace the entire cluster pull secret** - this will break the cluster by removing critical CI registry credentials
-- **ALWAYS merge credentials** using `jq` to preserve existing entries while adding new ones
-- **Required merging pattern**:
-  ```bash
-  # Step 1: Extract current cluster pull secret
-  oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d > /tmp/current-pull-secret.json
-
-  # Step 2: Verify what's currently in the cluster (CRITICAL - must preserve these!)
-  jq '.auths | keys[]' /tmp/current-pull-secret.json
-
-  # Step 3: Merge cluster pull secret with new credentials (cluster secret first, new credentials second)
-  jq -s '.[0] * .[1]' /tmp/current-pull-secret.json /tmp/new-credentials.json > /tmp/merged-pull-secret.json
-
-  # Step 4: Verify merge preserved all original registries AND added new ones
-  echo "=== Before merge ===" && jq '.auths | keys[]' /tmp/current-pull-secret.json | wc -l
-  echo "=== After merge ===" && jq '.auths | keys[]' /tmp/merged-pull-secret.json | wc -l
-  jq '.auths | keys[]' /tmp/merged-pull-secret.json | sort
-
-  # Step 5: Apply merged pull secret to cluster
-  oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=/tmp/merged-pull-secret.json
-
-  # Step 6: Clean up credential files
-  rm -f /tmp/current-pull-secret.json /tmp/new-credentials.json /tmp/merged-pull-secret.json
-
-  # WRONG - This replaces everything and breaks the cluster
-  oc set data secret/pull-secret -n openshift-config --from-file=.dockerconfigjson=~/.docker/config.json
-  ```
-- **CRITICAL**: `jq -s '.[0] * .[1]'` order matters - put CLUSTER secret FIRST, new credentials SECOND to ensure cluster credentials take precedence in case of conflicts
-- **Standard OpenShift pull secrets include critical registries**:
-  - `cloud.openshift.com` - OpenShift cluster services
-  - `quay.io` - Main container registry
-  - `quay-proxy.ci.openshift.org` - CI proxy registry
-  - `quay.io/openshift/ci` - CI builds
-  - `registry.ci.openshift.org` - CI registry
-  - `registry.connect.redhat.com` - Certified operators
-  - `registry.redhat.io` - Red Hat official images
-- **Before modifying pull secrets**:
-  1. Extract and backup current pull secret to `/tmp/original-pull-secret-$(date +%Y%m%d).json`
-  2. List all existing registry credentials: `oc get secret pull-secret -n openshift-config -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | jq '.auths | keys[]'`
-  3. Verify the merge preserves all original registries
-  4. Test that catalog pods can pull images after the change
-- **If credentials are accidentally removed**:
-  - Catalog pods (redhat-operators, certified-operators, etc.) will enter ImagePullBackOff
-  - Error message: "unauthorized: access to the requested resource is not authorized"
-  - Recovery requires obtaining original pull secret from cluster installation artifacts or Red Hat
-- **ALWAYS use proper jq merging**: `jq -s '.[0] * .[1]'` merges two JSON objects, preserving all keys from both
+- **ALWAYS merge credentials** - use the `/merging-cluster-pull-secrets` skill for the complete 6-step process, verification checklist, and red flags
 
 #### Retriggering Konflux Component Builds
 When a Konflux component needs to rebuild (e.g., after failures or to pick up latest commits):
