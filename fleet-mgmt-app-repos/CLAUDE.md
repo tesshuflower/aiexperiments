@@ -39,7 +39,7 @@ Provides:
 - [Development Commands](#development-commands)
   - [Testing and Linting](#testing-and-linting)
   - [GitHub Actions](#github-actions)
-  - [Monitoring Workflows](#monitoring-workflows)
+  - [Monitoring Konflux Resources](#monitoring-konflux-resources)
   - [Pull Request Workflows](#pull-request-workflows)
 - [Kubernetes/OpenShift Commands](#kubernetesopenshift-commands)
   - [Cluster Access](#cluster-access-with-separate-kubeconfig-files)
@@ -53,7 +53,7 @@ Provides:
   - [Rebasing Konflux PRs](#rebasing-konflux-prs)
 - [Common Workflows](#common-workflows)
 - [Dependencies and Prerequisites](#dependencies-and-prerequisites)
-- [Key Lessons Learned](#key-lessons-learned)
+- [Notes](#notes)
 - [VolSync E2E Testing Results Analysis](#volsync-e2e-testing-results-analysis)
 - [Git Commit Requirements](#git-commit-requirements)
 
