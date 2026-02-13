@@ -31,8 +31,36 @@ Provides:
 
 **Location:** `.claude/skills/monitoring-konflux-resources/SKILL.md`
 
+## Quick Start
+
+```bash
+# First time setup - discover workspace path
+FLEET_MGMT_DIR="$(git rev-parse --show-toplevel)/fleet-mgmt-app-repos"
+
+# Set up Konflux cluster access
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
+
+# Verify cluster access
+oc whoami
+
+# For other clusters
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>  # e.g., config-4-19
+```
+
+**Common tasks:**
+- List PRs: `gh pr list --repo stolostron/volsync-operator-product-build`
+- Monitor resources: Invoke `/monitoring-konflux-resources` skill
+- Run tests (in repo): `cd volsync && make test`
+- Check Konflux components: `oc -n volsync-tenant get component`
+
+**Important:** Due to KUBECONFIG resetting between commands, always use single-command syntax:
+```bash
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc get pods
+```
+
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Available Skills](#available-skills)
 - [Repositories](#repositories)
 - [Environment Setup](#environment-setup)
@@ -42,7 +70,6 @@ Provides:
   - [Monitoring Konflux Resources](#monitoring-konflux-resources)
   - [Pull Request Workflows](#pull-request-workflows)
 - [Kubernetes/OpenShift Commands](#kubernetesopenshift-commands)
-  - [Cluster Access](#cluster-access-with-separate-kubeconfig-files)
   - [Getting Images from Konflux PRs](#getting-images-from-konflux-prs-️-always-use-this-method---dont-forget)
   - [Testing FBC Images](#testing-fbc-images)
   - [Verifying Snapshots for Stage Releases](#verifying-snapshots-for-stage-releases-️-comprehensive-verification-required)
@@ -101,6 +128,24 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 ```
 
 **Note**: Commands in this document show `$FLEET_MGMT_DIR` for readability, but Claude Code will use the actual discovered absolute path (e.g., `/Users/username/projects/aiexperiments/fleet-mgmt-app-repos`).
+
+### Cluster Access with Kubeconfig Files
+
+**Setup**: Copy kubeconfig files to `.kube/` directory with descriptive names:
+- `cp ~/DEV/KONFLUX/konflux-rh01.kubeconfig .kube/config-konflux`
+- `cp ~/.kube/tflow-419-hub.config .kube/config-4-19`
+- `cp /path/to/other-cluster.config .kube/config-<cluster-name>`
+
+**Using kubeconfigs**:
+- **Konflux cluster**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux`
+- **Other clusters**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18)
+- **No context switching needed**: Each kubeconfig file contains only one cluster/context
+- **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
+
+**Command patterns**:
+- Konflux: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n <namespace> get <resource>`
+- Other clusters: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>; kubectl get <resource>`
+- **Example**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n volsync-tenant get component`
 
 ## Development Commands
 
@@ -459,19 +504,6 @@ When a konflux PR needs rebasing:
 - **Dependency conflict handling**: Add `/hold` comments explaining specific incompatibilities (e.g., structured-merge-diff v4/v6 conflicts).
 
 ### Kubernetes/OpenShift Commands
-#### Cluster Access with Separate Kubeconfig Files
-- **Setup**: Copy kubeconfig files to `.kube/` directory with descriptive names:
-  - `cp ~/DEV/KONFLUX/konflux-rh01.kubeconfig .kube/config-konflux`
-  - `cp ~/.kube/tflow-419-hub.config .kube/config-4-19`
-  - `cp /path/to/other-cluster.config .kube/config-<cluster-name>`
-- **Konflux cluster**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux`
-- **Other clusters**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18, config-staging)
-- **No context switching needed**: Each kubeconfig file contains only one cluster/context
-- **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
-- **Command patterns**:
-  - Konflux: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n <namespace> get <resource>`
-  - Other clusters: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>; kubectl get <resource>`
-- **Example**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc -n volsync-tenant get component`
 
 #### Getting Images from Konflux PRs ⚠️ **ALWAYS USE THIS METHOD - DON'T FORGET!**
 - **CRITICAL**: Always use snapshots with PR labels, NOT application labels or recent snapshots
