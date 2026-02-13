@@ -9,6 +9,31 @@ This is a multi-repository management workspace for VolSync and related projects
 It contains configurations and tools for managing VolSync operator development,
 testing, and release across multiple Red Hat and upstream repositories.
 
+## Table of Contents
+
+- [Repositories](#repositories)
+- [Environment Setup](#environment-setup)
+- [Development Commands](#development-commands)
+  - [Testing and Linting](#testing-and-linting)
+  - [GitHub Actions](#github-actions)
+  - [Monitoring Workflows](#monitoring-workflows)
+  - [Pull Request Workflows](#pull-request-workflows)
+- [Kubernetes/OpenShift Commands](#kubernetesopenshift-commands)
+  - [Cluster Access](#cluster-access-with-separate-kubeconfig-files)
+  - [Getting Images from Konflux PRs](#getting-images-from-konflux-prs-️-always-use-this-method---dont-forget)
+  - [Testing FBC Images](#testing-fbc-images)
+  - [Verifying Snapshots for Stage Releases](#verifying-snapshots-for-stage-releases-️-comprehensive-verification-required)
+  - [Working with OLM Subscriptions](#working-with-olm-subscriptions)
+  - [Creating OLM Subscriptions](#creating-olm-subscriptions-for-volsync-from-fbc)
+  - [Running VolSync E2E Tests](#running-volsync-e2e-tests-custom-scorecard-tests)
+  - [Retriggering Konflux Builds](#retriggering-konflux-component-builds)
+  - [Rebasing Konflux PRs](#rebasing-konflux-prs)
+- [Common Workflows](#common-workflows)
+- [Dependencies and Prerequisites](#dependencies-and-prerequisites)
+- [Key Lessons Learned](#key-lessons-learned)
+- [VolSync E2E Testing Results Analysis](#volsync-e2e-testing-results-analysis)
+- [Git Commit Requirements](#git-commit-requirements)
+
 ## Repositories
 ### Product Repos
 - VolSync Operator Product Build (build): https://github.com/stolostron/volsync-operator-product-build - VolSync operator product build repository
