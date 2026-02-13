@@ -103,66 +103,24 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - Deploy to production: `gh workflow run deploy.yml --ref main`
 - Run CI: `gh workflow run ci.yml`
 
-#### Monitoring Workflows
-**DEFAULT: USE FOREGROUND MONITORING** - Unless user specifically requests "in background"
+#### Monitoring Konflux Resources
+**For monitoring GitHub PRs, workflows, Konflux PipelineRuns, or Releases**: Use the `/monitoring-konflux-resources` skill which provides:
+- Slack notification setup and verification
+- Foreground monitoring with proper error handling
+- Terminal state detection (stop when complete)
+- Authentication error handling
+- Timeout protection and heartbeat notifications
+- Resource-specific status field guidance
+- Complete working examples
 
-**IMPORTANT**: When user asks to monitor anything (PRs, workflows, deployments, builds, etc.):
-1. **Always check Slack setup first**: Run `if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then echo "✅ Slack notifications are configured - I will notify you via Slack"; else echo "❌ CLAUDE_SLACK_WEBHOOK_URL not set - I will use local OS notifications only"; fi`
-2. **Test the command first**: Before setting up monitoring, run the core command once to verify authentication, connectivity, and that the resource exists
-3. **Show core command only**: ALWAYS show the simple core command that will be monitored (e.g., "gh pr view 276 --json state") but NEVER show monitoring loops, notification functions, or script logic in tool calls unless user specifically asks to see it.
-4. **CRITICAL**: When setting up monitoring, ALWAYS specify the core command BEFORE starting monitoring - this is essential context the user needs.
-5. **MANDATORY CONFIRMATION**: ALWAYS provide monitoring summary including repo name, PR link, interval and notification method, then ASK FOR CONFIRMATION before starting - user must explicitly approve with "yes" or similar
-6. **Provide status updates when user interacts**: Check monitoring output and provide status updates whenever user sends a message - cannot automatically update every interval since I only respond to user messages
-7. **Report when monitoring completes**: Check if monitoring has finished when user interacts and report completion status
-8. **Embed notification function**: Don't try to extract notify_user from CLAUDE.md - embed the full cross-platform notification function directly in the monitoring script
-9. **CRITICAL FIX**: Monitor scripts MUST stop immediately when terminal states are reached:
-   - **PipelineRuns**: Stop on "Succeeded", "Failed", "Completed", "Cancelled" - do NOT continue monitoring after these states
-   - **PRs**: Stop on "MERGED", "CLOSED" 
-   - **Workflows**: Stop on "completed", "failure", "cancelled"
-   - Add explicit break statements after detecting terminal states to prevent continued monitoring and authentication errors
-10. **TIMEOUT PROTECTION & ERROR HANDLING**: All monitoring scripts MUST include robust error handling:
-   - **PR Monitors**: Maximum 48 hours, then auto-stop with timeout notification
-   - **PipelineRuns**: Maximum 4 hours (most should complete in 1-2 hours)
-   - **Background Cleanup**: Sessions accumulate many background monitors - add timeout checks to prevent resource drain
-   - **Implementation**: Track start time, check elapsed time each cycle, stop with notification when limit exceeded
-   - **CRITICAL ERROR HANDLING**: Always wrap gh/oc commands in error checking - if command fails 3 times in a row, notify user about script failure and exit
-   - **API FAILURE DETECTION**: Check for authentication errors, rate limits, network issues - notify immediately, don't fail silently
-   - **Consecutive failure counter**: Track failed API calls, send alert after 3 consecutive failures
-   - **Heartbeat notifications**: Send "still monitoring" notification every 30 minutes to prove script is alive
-   - **DETAILED NOTIFICATIONS**: All notifications MUST include repository name, PR number, direct GitHub link, and context
-   - **Notification format example**: 
-     ```
-     volsync-operator-product-build PR #293 has been MERGED! 🚀
-     https://github.com/stolostron/volsync-operator-product-build/pull/293
-     CPE label update - changes now in release-0.12 branch
-     ```
-   - **Template available**: Use `/tmp/robust_pr_monitor_template.sh` as reference for implementing all error handling features
-11. **CRITICAL: Bash Tool Timeout Must Match Script Duration**: When running foreground monitoring scripts:
-   - **ALWAYS set Bash tool timeout longer than script's internal timeout**
-   - **Deploy-fbc-operator tests**: Use `"timeout": 3600000` (1 hour) or longer for 30-minute tests
-   - **PR monitors**: Use `"timeout": 172800000` (48 hours) for long-running PR monitoring
-   - **Never promise one timeout and set a shorter one** - this creates inconsistent expectations
+**Quick reference:**
+- **PRs**: Monitor for MERGED/CLOSED states
+- **Workflows**: Monitor for completion/failure
+- **PipelineRuns**: Monitor for Succeeded/Failed/Cancelled
+- **Releases**: Monitor for Succeeded/Failed
+- **Foreground only**: Background monitoring deprecated
 
-#### **CRITICAL: Foreground vs Background Monitoring**
-**When user asks for "foreground monitoring" with notifications:**
-- **FOREGROUND MONITORING**: Run the actual command directly with appropriate timeout, show real-time output as it streams to user
-- **BACKGROUND MONITORING**: Create a script that runs in background and only notifies on completion
-- **User expectation for "foreground"**: They want to see real-time progress AND get notified when done
-- **NEVER create monitoring scripts when user asks for foreground monitoring** - run the command directly
-- **Example - CORRECT foreground approach**:
-  ```bash
-  # Run the actual command with long timeout and tee to log file
-  unset KUBECONFIG && export KUBECONFIG=/path/to/config && ./command 2>&1 | tee /tmp/logfile.log
-  ```
-- **Example - WRONG approach for foreground**:
-  ```bash
-  # Creating a script that runs in background - user won't see real-time output
-  bash /tmp/monitoring_script.sh
-  ```
-- **Key lesson**: Monitoring scripts are for background execution. Foreground monitoring means direct execution with real-time output visibility.
-   - **Script internal timeout**: Set via MAX_DURATION variable in script
-   - **Bash tool timeout**: Set via timeout parameter in Bash tool call
-   - **Rule**: Bash tool timeout ≥ Script internal timeout + 10 minutes buffer
+**Environment variable**: Set `CLAUDE_SLACK_WEBHOOK_URL` for Slack notifications (otherwise uses local OS notifications)
 
 #### **CRITICAL: Foreground Monitoring with Log Capture**
 **For long-running commands that need result analysis (e.g., VolSync e2e tests):**
@@ -211,171 +169,6 @@ LOG_FILE="/tmp/volsync-e2e-$(date +%Y%m%d-%H%M%S).log"
 - **Don't combine complex operations** in single bash tool calls
 - **Always verify output capture is working** before proceeding
 - **Save results analysis** - logs are essential for understanding what happened
-
-#### Monitoring Mode Selection
-**DEFAULT BEHAVIOR**: Use foreground monitoring unless user specifically requests background
-
-**User commands and responses:**
-- "monitor PR #123" → **Foreground monitoring** (default)
-- "monitor PipelineRun xyz" → **Foreground monitoring** (default)
-- "monitor PR #123 in background" → **Background monitoring** (explicit request)
-- "monitor PipelineRun xyz in the background" → **Background monitoring** (explicit request)
-
-**Foreground monitoring benefits:**
-- ✅ No system reminder spam from completed processes
-- ✅ Immediate error visibility (auth, syntax, connectivity)
-- ✅ Real-time status updates during execution
-- ✅ Clean process management - no zombie processes
-- ✅ Session blocks but provides reliable, spam-free monitoring
-
-**Background monitoring trade-offs:**
-- ✅ Allows parallel work during long-running monitoring
-- ❌ Creates persistent system reminder spam
-- ❌ Authentication errors may fail silently
-- ❌ Process cleanup issues can accumulate
-
-**CRITICAL: Bash Syntax Fix for Heartbeat Messages**:
-- **BROKEN**: `"Still monitoring ($(($ELAPSED/3600))h ${$(($ELAPSED%3600/60))}m elapsed)"`
-- **FIXED**: `"Still monitoring ($(($ELAPSED/3600))h $((($ELAPSED%3600)/60))m elapsed)"`
-- **Issue**: Nested `$()` substitution requires proper syntax - use `$((($ELAPSED%3600)/60))` not `${$(($ELAPSED%3600/60))}`
-- **Always test**: Validate bash arithmetic syntax before deploying monitoring scripts
-
-**Status Reporting Conventions**:
-- ✅ **Green checkmark**: Monitoring worked correctly AND resource completed successfully
-- ❌ **Red X**: Either monitoring failed OR the monitored resource failed
-- 🔄 **In progress**: Still actively monitoring
-- **Never use green checkmarks for failed outcomes** - this is misleading to users
-
-**CRITICAL: Slack Notification JSON Formatting**:
-- **NEVER use inline JSON with --data "{...}"** when message contains emojis, newlines, or special characters
-- **ALWAYS create temporary JSON file** and use `curl -d @file.json` to avoid escaping issues
-- **Inline approach FAILS** with messages containing: ✅ ❌ 📊 🚀 and `\n` newlines
-- **Correct pattern**:
-  ```bash
-  # Create JSON file to avoid escaping issues
-  SLACK_JSON="/tmp/slack-notification-$$.json"
-  cat > "$SLACK_JSON" << EOF
-{
-  "text": "*Title*\n✅ Passed: $PASS_COUNT\n❌ Failed: $FAIL_COUNT\n📊 Pass Rate: $PASS_RATE%"
-}
-EOF
-  curl -s -X POST -H 'Content-type: application/json' -d @"$SLACK_JSON" "$CLAUDE_SLACK_WEBHOOK_URL" > /dev/null
-  rm -f "$SLACK_JSON"
-  ```
-- **WRONG approach that fails**:
-  ```bash
-  # DON'T DO THIS - inline JSON fails with special characters
-  curl -s -X POST -H 'Content-type: application/json' \
-    --data "{\"text\": \"*Title*\n✅ Passed: $COUNT\"}" \
-    "$CLAUDE_SLACK_WEBHOOK_URL"
-  # Returns: invalid_payload
-  ```
-- **Why it fails**: Bash escaping of emojis and special characters in inline JSON is unreliable
-- **Lesson learned**: Always test Slack notifications work correctly before trusting the script
-- **All monitoring scripts**: Must use the file-based approach for reliable notifications
-
-When monitoring workflows for completion, use this pattern to notify with dialog when ANY status change occurs (success or failure):
-```bash
-# Function to send notification based on OS and Slack integration
-notify_user() {
-  local message="$1"
-  local title="$2"
-  
-  # Send Slack notification if webhook URL is configured
-  if [ -n "$CLAUDE_SLACK_WEBHOOK_URL" ]; then
-    curl -s -X POST -H 'Content-type: application/json' \
-      --data "{\"text\": \"*$title*\\n$message\"}" \
-      "$CLAUDE_SLACK_WEBHOOK_URL" > /dev/null
-  else
-    # Send local desktop notification only if Slack is not configured
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      # macOS - escape quotes properly
-      osascript -e "display dialog \"$message\" with title \"$title\""
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-      # Linux
-      if command -v notify-send &> /dev/null; then
-        notify-send "$title" "$message"
-      elif command -v zenity &> /dev/null; then
-        zenity --info --title="$title" --text="$message"
-      else
-        echo "🚨 $title: $message 🚨"
-      fi
-    else
-      # Fallback for other systems
-      echo "🚨 $title: $message 🚨"
-    fi
-  fi
-}
-
-while true; do 
-  echo "=== $(date) ==="
-  # Use 'run_status' instead of 'status' to avoid read-only variable conflicts
-  run_status=$(gh run list --branch BRANCH --limit 3 | grep "RUN_ID" | awk '{print $2}')
-  if [[ "$run_status" == "completed" ]]; then
-    result=$(gh run list --branch BRANCH --limit 3 | grep "RUN_ID" | awk '{print $3}')
-    notify_user "Workflow RUN_ID completed with status: $result" "GitHub Actions Alert"
-    break
-  elif [[ "$run_status" != "in_progress" && "$run_status" != "" ]]; then
-    notify_user "Workflow RUN_ID finished with status: $run_status" "GitHub Actions Alert"
-    break
-  fi
-  echo "Status: $run_status - checking again in 10 minutes"
-  sleep 600
-done
-```
-
-#### Error Handling for Monitoring Scripts
-**CRITICAL**: All monitoring scripts must include proper error handling for authentication failures and persistent errors:
-
-```bash
-# Add error counter and max retries
-ERROR_COUNT=0
-MAX_ERRORS=3
-
-# In the monitoring loop, track consecutive errors
-if [ $? -ne 0 ] || [[ "$CURRENT_STATUS" == "Error" ]] || [[ -z "$CURRENT_STATUS" ]]; then
-  ERROR_COUNT=$((ERROR_COUNT + 1))
-  echo "Error getting status (attempt $ERROR_COUNT/$MAX_ERRORS)"
-  
-  # Check if it's an authentication error specifically
-  if echo "$OUTPUT" | grep -q "Unauthorized\|must be logged in\|authentication"; then
-    notify_user "Authentication failure detected while monitoring. Please re-authenticate and restart monitoring." "Authentication Error"
-    echo "❌ Monitoring stopped due to authentication failure"
-    break
-  fi
-  
-  if [ $ERROR_COUNT -ge $MAX_ERRORS ]; then
-    notify_user "Monitoring failed after $MAX_ERRORS consecutive errors. Please check authentication/connectivity." "Monitoring Error"
-    echo "❌ Monitoring stopped due to persistent errors"
-    break
-  fi
-  
-  # For auth errors, don't wait the full interval - check again in 30 seconds
-  if [ $ERROR_COUNT -gt 0 ]; then
-    echo "Next retry in 30 seconds..."
-    sleep 30
-    continue
-  fi
-else
-  ERROR_COUNT=0  # Reset on successful status check
-fi
-```
-
-**Requirements for all monitoring scripts:**
-- **ALWAYS** provide core command and interval details BEFORE starting monitoring
-- Immediately stop and notify on authentication errors (don't retry)
-- For other errors, retry with 30-second intervals instead of full monitoring interval
-- Stop monitoring after 3 consecutive non-auth errors
-- Notify user about specific error types (auth vs connectivity)
-- Reset error counter on successful status checks
-- Include repository name and URLs in all notifications
-
-**Before starting ANY monitoring, ALWAYS specify:**
-```
-Core monitoring command: gh pr view <PR_NUM> -R <repo> --json state,labels
-Monitoring interval: Every X minutes (Y seconds)
-What it monitors: [list key things being tracked]
-```
 
 ### Pull Request Workflows
 - Create PR: Standard process with auto-generated descriptions
