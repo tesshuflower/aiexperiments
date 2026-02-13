@@ -716,7 +716,7 @@ spec:
 - Language: Go
 - Go modules: enabled
 - **Git repository structure**: This directory (`fleet-mgmt-app-repos/`) is a subdirectory of the main git repository
-- **Git operations**: When committing changes, files are relative to the git root, not this working directory
+- **Git operations**: When working in the `fleet-mgmt-app-repos/` subdirectory, use paths relative to your current directory (e.g., `git add CLAUDE.md`), not git-root-relative paths. Git commands accept paths relative to PWD.
 - **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig files are in the `fleet-mgmt-app-repos/.kube/` directory, not in subdirectories like checked-out repos
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
