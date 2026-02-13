@@ -9,8 +9,31 @@ This is a multi-repository management workspace for VolSync and related projects
 It contains configurations and tools for managing VolSync operator development,
 testing, and release across multiple Red Hat and upstream repositories.
 
+## Available Skills
+
+This repository includes custom Claude Code skills in `.claude/skills/`:
+
+### monitoring-konflux-resources
+**Foreground monitoring for PRs, Workflows, PipelineRuns, and Releases**
+
+Provides:
+- Slack notification setup and verification
+- Proper error handling (auth errors, consecutive failures, timeout protection)
+- Terminal state detection (stops when resource completes)
+- Resource-specific status field guidance (correct jsonpath for each resource type)
+- Complete working examples
+
+**Use when:**
+- "monitor PR #123"
+- "watch for workflow to complete"
+- "track PipelineRun xyz-build"
+- "monitor release volsync-0-12-stage"
+
+**Location:** `.claude/skills/monitoring-konflux-resources/SKILL.md`
+
 ## Table of Contents
 
+- [Available Skills](#available-skills)
 - [Repositories](#repositories)
 - [Environment Setup](#environment-setup)
 - [Development Commands](#development-commands)
@@ -816,66 +839,7 @@ fi
 
 **Lesson learned**: Always use `wc -l` for counting and force integer conversion.
 
-### **CRITICAL FIX: Release Monitoring Status Field Selection**
-
-When monitoring Konflux releases, **ALWAYS use the correct status field to get accurate real-time status**:
-
-**❌ BROKEN (reports false failures):**
-```bash
-# WRONG - Released condition status is always True/False, not the actual status
-STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].status}')
-if [[ "$STATUS" == "False" ]]; then
-    echo "❌ $release failed"  # INCORRECT - False just means "not yet released"
-fi
-```
-
-**❌ ALSO BROKEN (field doesn't exist):**
-```bash
-# WRONG - releases don't have a status.phase field
-STATUS=$(oc get release $release -o jsonpath='{.status.phase}')  # Returns empty!
-```
-
-**✅ CORRECT (matches RELEASE STATUS column exactly):**
-```bash
-# CORRECT - use Released condition reason for actual status
-STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}')
-if [[ "$STATUS" == "Succeeded" ]]; then
-    echo "✅ $release completed successfully"
-elif [[ "$STATUS" == "Failed" ]]; then
-    echo "❌ $release failed"
-else
-    echo "🔄 $release status: ${STATUS:-Progressing}"
-fi
-```
-
-**Key discovery:**
-- **`status.conditions[?(@.type=="Released")].reason`** = The exact value shown in RELEASE STATUS column
-- **Possible values**: "Progressing", "Succeeded", "Failed"
-- **NOT** the `.status` field of the condition (which is True/False)
-- **NOT** `status.phase` (which doesn't exist for releases)
-
-**Why previous approaches failed:**
-1. **Released condition `.status`**: Always True/False, not the actual release status
-2. **`status.phase`**: Doesn't exist for Release resources (returns empty)
-3. **Misunderstanding**: The RELEASE STATUS column comes from the condition's `.reason`, not `.status`
-
-**Correct monitoring pattern:**
-```bash
-# Test the correct field first
-STATUS=$(oc get release $release -o jsonpath='{.status.conditions[?(@.type=="Released")].reason}')
-echo "DEBUG: Release $release reason: '$STATUS'"
-
-# Then monitor based on reason values
-case "$STATUS" in
-    "Succeeded") echo "✅ $release completed successfully" ;;
-    "Failed") echo "❌ $release failed" ;;
-    *) echo "🔄 $release status: ${STATUS:-Progressing}" ;;
-esac
-```
-
-**Lesson learned**: Always investigate the actual field structure before implementing monitoring. The RELEASE STATUS column in `oc get releases` comes from the Released condition's `.reason` field, not `.status` or `.phase`.
-
-- **Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
+**Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
 
 **CRITICAL: Base Repository Protection**:
 - **NEVER check out branches from other repositories in the base aiexperiments repo** without explicit user permission
