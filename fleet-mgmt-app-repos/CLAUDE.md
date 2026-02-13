@@ -187,72 +187,21 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - Deploy to production: `gh workflow run deploy.yml --ref main`
 - Run CI: `gh workflow run ci.yml`
 
-#### Monitoring Konflux Resources
-**For monitoring GitHub PRs, workflows, Konflux PipelineRuns, or Releases**: Use the `/monitoring-konflux-resources` skill which provides:
-- Slack notification setup and verification
-- Foreground monitoring with proper error handling
-- Terminal state detection (stop when complete)
-- Authentication error handling
-- Timeout protection and heartbeat notifications
-- Resource-specific status field guidance
-- Complete working examples
-
-**Quick reference:**
-- **PRs**: Monitor for MERGED/CLOSED states
-- **Workflows**: Monitor for completion/failure
-- **PipelineRuns**: Monitor for Succeeded/Failed/Cancelled
-- **Releases**: Monitor for Succeeded/Failed
-- **Foreground only**: Background monitoring deprecated
-
-**Environment variable**: Set `CLAUDE_SLACK_WEBHOOK_URL` for Slack notifications (otherwise uses local OS notifications)
-
 #### **CRITICAL: Foreground Monitoring with Log Capture**
 **For long-running commands that need result analysis (e.g., VolSync e2e tests):**
 
-**MANDATORY Requirements:**
-1. **Always create unique log file path first** before starting command
-2. **Use simple, tested syntax** - avoid complex command chaining in single bash calls
-3. **Verify log file creation works** with the command structure
-4. **Never lose command output** due to poor syntax
-
-**CORRECT Pattern for Log Capture:**
+**Pattern for Log Capture:**
 ```bash
-# Step 1: Create unique log file path
 LOG_FILE="/tmp/command-name-$(date +%Y%m%d-%H%M%S).log"
-
-# Step 2: Run command with simple output redirection
 export KUBECONFIG=/path/to/config
 ./command-here > "$LOG_FILE" 2>&1
-
-# Step 3: Analyze results from log file
 grep -c "pass\|fail" "$LOG_FILE"
 ```
 
-**WRONG - Complex chaining that fails:**
-```bash
-# DON'T DO THIS - complex syntax that breaks
-./command 2>&1 | tee /tmp/file-$(date +%Y%m%d-%H%M%S).log && other-commands
-```
-
-**Specific Examples:**
-
-**VolSync E2E Tests:**
-```bash
-LOG_FILE="/tmp/volsync-e2e-$(date +%Y%m%d-%H%M%S).log"
-./bin/operator-sdk scorecard ./bundle --config custom-scorecard-tests/config-downstream.yaml --selector=suite=volsync-e2e -o text --wait-time=3600s --skip-cleanup=false --service-account=volsync-test-runner > "$LOG_FILE" 2>&1
-```
-
-**Post-Command Analysis Requirements:**
-- Always analyze captured logs for pass/fail counts using: `grep -c "State: pass\|State: fail" "$LOG_FILE"`
-- Provide summary of results from log file
-- Calculate pass rate and identify any failures
-- Never lose test results due to poor command execution
-
-**Key Lessons Learned:**
-- **Test log file creation first** with simple commands when unsure
-- **Don't combine complex operations** in single bash tool calls
-- **Always verify output capture is working** before proceeding
-- **Save results analysis** - logs are essential for understanding what happened
+**Key points:**
+- Create unique log file path first
+- Use simple output redirection (avoid complex chaining)
+- Analyze results from log file after command completes
 
 ### Pull Request Workflows
 - Create PR: Standard process with auto-generated descriptions
@@ -297,16 +246,6 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - When asked to "show repos" or "show me repos": Display the repository list from the Repositories section above
 
 #### Key Lessons Learned
-
-**KUBECONFIG Management:**
-- Environment has persistent KUBECONFIG that resets between commands
-- ALWAYS use single-command syntax: `unset KUBECONFIG && export KUBECONFIG=/path && kubectl command`
-- Never rely on KUBECONFIG persisting across separate bash commands
-
-**Directory Awareness:**
-- Always run `pwd` before relative commands to confirm current location
-- Use absolute paths when possible to avoid confusion
-- Remember which directory you're in before running relative commands
 
 **Cluster-Keeper (ck) Tool Usage:**
 - Get cluster credentials: `ck creds <cluster-name>`
@@ -419,25 +358,8 @@ oc -n <namespace> get pipelineruns -l appstudio.openshift.io/component=<componen
 - **Component retriggering**: Use annotation to rebuild from latest commit
 - **IntegrationTestScenario retriggering**: Use snapshot labeling to re-run tests
 - **Always verify what needs retriggering first** - don't trigger unnecessarily
-
-**Component Retrigger Example:**
-```bash
-# Check FBC 4.17 component
-oc -n volsync-tenant get component volsync-fbc-4-17 -o jsonpath='{.status.lastBuiltCommit}'
-gh api repos/stolostron/volsync-operator-product-fbc/commits/main --jq '.sha'
-
-# Retrigger if needed
-oc -n volsync-tenant annotate component/volsync-fbc-4-17 build.appstudio.openshift.io/request=trigger-pac-build
-
-# Monitor new PipelineRun
-oc -n volsync-tenant get pipelineruns --sort-by=.metadata.creationTimestamp | grep "volsync-fbc-4-17-on-push" | tail -3
-```
-
-**Key points:**
-- **Always verify commit mismatch first** - don't retrigger unnecessarily
 - **Annotation is consumed automatically** - it disappears after triggering
 - **Wait for new PipelineRun creation** - may take 30-60 seconds
-- **Monitor the new build** - set up proper monitoring for completion
 
 #### Rebasing Konflux PRs
 When a konflux PR needs rebasing:
@@ -690,20 +612,15 @@ spec:
 - Go modules: enabled
 - **Git repository structure**: This directory (`fleet-mgmt-app-repos/`) is a subdirectory of the main git repository
 - **Git operations**: When working in the `fleet-mgmt-app-repos/` subdirectory, use paths relative to your current directory (e.g., `git add CLAUDE.md`), not git-root-relative paths. Git commands accept paths relative to PWD.
-- **IMPORTANT**: Always ensure you're in the correct directory when using kubeconfig - the kubeconfig files are in the `fleet-mgmt-app-repos/.kube/` directory, not in subdirectories like checked-out repos
+- **Directory awareness**: Always run `pwd` before relative commands to confirm current location, especially for kubeconfig files and script execution
 - **Temporary files**: Save temporary files (like CatalogSource YAML) in `/tmp` or similar temp directory, not in the repo workspace
 - **Before apply operations**: Always verify current context with `kubectl config current-context` before running `oc apply` or similar commands
-- **CRITICAL**: Always run `pwd` before executing commands to verify current directory - especially important for relative paths, kubeconfig files, and script execution
-- **KUBECONFIG Management**: The environment has a persistent KUBECONFIG variable that gets reset between bash commands. Always use single-command syntax: `unset KUBECONFIG && export KUBECONFIG=/path/to/config && kubectl command` to ensure the correct kubeconfig is used
+- **Base repository protection**: Never check out branches from other repositories in the base aiexperiments repo without explicit user permission. Always `cd` into specific repository directories first and verify with `git remote -v`
 
 ### Konflux Cluster Authentication
 When Konflux credentials expire, re-authenticate using:
 ```bash
-unset KUBECONFIG && export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux && oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
-```
-After authentication, always use the single-command pattern for kubectl operations:
-```bash
-unset KUBECONFIG && export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux && kubectl command
+export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux; oc login --web https://api.stone-prd-rh01.pg1f.p1.openshiftapps.com:6443/
 ```
 
 ### Cluster-Keeper (ck) Tool Usage
@@ -798,14 +715,6 @@ fi
 - **Quote test variables: `[ "$VAR" -gt 0 ]`** - prevents errors
 
 **Lesson learned**: Always use `wc -l` for counting and force integer conversion.
-
-**Directory awareness**: When switching between repos (volsync, volsync-addon-controller, etc.), always confirm location with `pwd`
-
-**CRITICAL: Base Repository Protection**:
-- **NEVER check out branches from other repositories in the base aiexperiments repo** without explicit user permission
-- When working with PR branches, always `cd` into the specific repository directory first (e.g., `cd volsync-operator-product-build`)
-- **Always verify you're in the correct repository** with `git remote -v` before any git operations
-- The base repo should stay on `main` branch unless user explicitly requests otherwise
 
 ## Git Commit Requirements
 
