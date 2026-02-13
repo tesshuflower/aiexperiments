@@ -1,5 +1,6 @@
-# Claude session data
-fleet-mgmt-app-repos/.claude/
+# Claude session data (but allow skills to be shared)
+fleet-mgmt-app-repos/.claude/*
+!fleet-mgmt-app-repos/.claude/skills/
 
 # Kubernetes config files
 fleet-mgmt-app-repos/.kube/
