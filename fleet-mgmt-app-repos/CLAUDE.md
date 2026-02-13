@@ -31,6 +31,23 @@ Provides:
 
 **Location:** `.claude/skills/monitoring-konflux-resources/SKILL.md`
 
+### merging-cluster-pull-secrets
+**Safe credential merging for OpenShift cluster pull secrets**
+
+Provides:
+- 6-step merge process preventing cluster breakage
+- Verification checklist (before/after merge)
+- Red flags table for dangerous shortcuts
+- Standard OpenShift registry list
+- Recovery guidance if credentials accidentally removed
+
+**Use when:**
+- Adding dev build credentials (quay.io/acm-d mirrors)
+- Working with port-specific registries (quay.io:443)
+- Cluster shows ImagePullBackOff for registry authentication
+
+**Location:** `.claude/skills/merging-cluster-pull-secrets/SKILL.md`
+
 ## Quick Start
 
 ```bash
