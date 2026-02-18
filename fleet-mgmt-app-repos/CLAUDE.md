@@ -170,10 +170,11 @@ export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux
 - `cp ~/DEV/KONFLUX/konflux-rh01.kubeconfig .kube/config-konflux`
 - `cp ~/.kube/tflow-419-hub.config .kube/config-4-19`
 - `cp /path/to/other-cluster.config .kube/config-<cluster-name>`
+- **Note**: Files may be symlinks to actual kubeconfigs in `~/.kube/` with various naming patterns (e.g., `tflow-419-feb18.config`)
 
 **Using kubeconfigs**:
 - **Konflux cluster**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-konflux`
-- **Other clusters**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>` (e.g., config-4-19, config-4-18)
+- **Other clusters**: `export KUBECONFIG=$FLEET_MGMT_DIR/.kube/config-<cluster-name>` or actual filename (e.g., `config-4-19`, `tflow-419-feb18.config`)
 - **No context switching needed**: Each kubeconfig file contains only one cluster/context
 - **OpenShift resources**: Use `oc` instead of `kubectl` for OpenShift-specific resources like `component`
 
@@ -284,6 +285,7 @@ When working with PRs that update bundle images or digests (especially FBC PRs):
 - Use bash commands with absolute paths instead of Write tool when dealing with complex paths
 
 **VolSync E2E Testing:**
+- **ALWAYS use `/volsync-e2e-testing` skill** - provides automatic Slack monitoring, pre-flight checks, branch verification, and result analysis
 - Custom scorecard tests provide comprehensive operator validation
 - Use config-downstream.yaml for downstream builds
 - Monitor test logs for detailed failure analysis
