@@ -48,6 +48,24 @@ Provides:
 
 **Location:** `.claude/skills/merging-cluster-pull-secrets/SKILL.md`
 
+### volsync-e2e-testing
+**Automated VolSync e2e testing with Slack monitoring**
+
+Provides:
+- Automatic Slack webhook detection (no user prompts)
+- Pre-flight checks (branch verification, prerequisites)
+- Complete monitoring script with start/completion notifications
+- Result analysis with pass/fail summary
+- Proper error handling (wc -l usage, integer conversion)
+
+**Use when:**
+- "run VolSync e2e tests"
+- "test VolSync operator"
+- Verifying operator installation or upgrade
+- Need automated monitoring for long-running tests
+
+**Location:** `.claude/skills/volsync-e2e-testing/SKILL.md`
+
 ## Quick Start
 
 ```bash
