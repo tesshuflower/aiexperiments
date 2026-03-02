@@ -119,13 +119,14 @@ cd /path/to/volsync
 
 ```bash
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail  # Removed -e so script always completes
 
 # Configuration
 LOG_FILE="/tmp/volsync-e2e-$(date +%Y%m%d-%H%M%S).log"
 KUBECONFIG_PATH="<full-path-to-kubeconfig>"
 VOLSYNC_DIR="<full-path-to-volsync>"
 SLACK_WEBHOOK="${CLAUDE_SLACK_WEBHOOK_URL:-}"
+EXIT_CODE=0
 
 # Slack notification function
 send_slack() {
@@ -136,6 +137,59 @@ send_slack() {
         -d "{\"text\":\"$message\"}" \
         2>/dev/null || echo "Slack notification failed"
 }
+
+# Cleanup function - ALWAYS runs, even on error
+cleanup() {
+    local final_exit=$?
+    [ $EXIT_CODE -eq 0 ] && EXIT_CODE=$final_exit
+
+    # Analyze results (use wc -l, not grep -c)
+    PASS_COUNT=$(grep "State: pass" "$LOG_FILE" 2>/dev/null | wc -l || echo "0")
+    FAIL_COUNT=$(grep "State: fail" "$LOG_FILE" 2>/dev/null | wc -l || echo "0")
+
+    # Force integer conversion to strip whitespace
+    PASS_COUNT=$((PASS_COUNT + 0))
+    FAIL_COUNT=$((FAIL_COUNT + 0))
+    TOTAL=$((PASS_COUNT + FAIL_COUNT))
+
+    # Calculate pass rate safely
+    if [ "$TOTAL" -gt 0 ]; then
+        PASS_RATE=$((PASS_COUNT * 100 / TOTAL))
+    else
+        PASS_RATE=0
+    fi
+
+    # Determine status emoji
+    if [ "$EXIT_CODE" -eq 0 ] && [ "$FAIL_COUNT" -eq 0 ]; then
+        STATUS_EMOJI="✅"
+        STATUS_TEXT="COMPLETED"
+    else
+        STATUS_EMOJI="⚠️"
+        STATUS_TEXT="COMPLETED WITH ISSUES"
+    fi
+
+    # Send completion notification - ALWAYS
+    send_slack "$STATUS_EMOJI *VolSync E2E Tests $STATUS_TEXT*
+📊 *Results:* $PASS_COUNT passed / $FAIL_COUNT failed ($PASS_RATE% pass rate)
+📝 *Log:* \`$LOG_FILE\`
+⏰ *Completed:* $(date)"
+
+    # Display summary to console
+    echo ""
+    echo "========================================"
+    echo "VolSync E2E Test Summary"
+    echo "========================================"
+    echo "Passed: $PASS_COUNT"
+    echo "Failed: $FAIL_COUNT"
+    echo "Total:  $TOTAL"
+    echo "Pass Rate: $PASS_RATE%"
+    echo "Log File: $LOG_FILE"
+    echo "Exit Code: $EXIT_CODE"
+    echo "========================================"
+}
+
+# Ensure cleanup runs on exit
+trap cleanup EXIT
 
 # Get cluster context for notification
 export KUBECONFIG="$KUBECONFIG_PATH"
@@ -157,51 +211,6 @@ if ./bin/operator-sdk scorecard ./bundle \
 else
     EXIT_CODE=$?
 fi
-
-# Analyze results (use wc -l, not grep -c)
-PASS_COUNT=$(grep "State: pass" "$LOG_FILE" 2>/dev/null | wc -l)
-FAIL_COUNT=$(grep "State: fail" "$LOG_FILE" 2>/dev/null | wc -l)
-
-# Force integer conversion to strip whitespace
-PASS_COUNT=$((PASS_COUNT + 0))
-FAIL_COUNT=$((FAIL_COUNT + 0))
-TOTAL=$((PASS_COUNT + FAIL_COUNT))
-
-# Calculate pass rate safely
-if [ "$TOTAL" -gt 0 ]; then
-    PASS_RATE=$((PASS_COUNT * 100 / TOTAL))
-else
-    PASS_RATE=0
-fi
-
-# Determine status emoji
-if [ "$EXIT_CODE" -eq 0 ]; then
-    STATUS_EMOJI="✅"
-    STATUS_TEXT="COMPLETED"
-else
-    STATUS_EMOJI="⚠️"
-    STATUS_TEXT="COMPLETED WITH ISSUES"
-fi
-
-# Send completion notification
-send_slack "$STATUS_EMOJI *VolSync E2E Tests $STATUS_TEXT*
-📊 *Results:* $PASS_COUNT passed / $FAIL_COUNT failed ($PASS_RATE% pass rate)
-📝 *Log:* \`$LOG_FILE\`
-⏰ *Completed:* $(date)"
-
-# Display summary to console
-echo ""
-echo "========================================"
-echo "VolSync E2E Test Summary"
-echo "========================================"
-echo "Passed: $PASS_COUNT"
-echo "Failed: $FAIL_COUNT"
-echo "Total:  $TOTAL"
-echo "Pass Rate: $PASS_RATE%"
-echo "Log File: $LOG_FILE"
-echo "========================================"
-
-exit $EXIT_CODE
 ```
 
 **Then run in FOREGROUND (REQUIRED - NOT background):**
