@@ -7,7 +7,7 @@ description: Use when running VolSync e2e tests on clusters, verifying operator 
 
 ## Overview
 
-Runs VolSync custom scorecard e2e test suite with automatic Slack notifications, log capture, and result analysis. **Core principle: Monitoring is automatic, not manual.**
+Runs VolSync custom scorecard e2e test suite with automatic Slack notifications, log capture, and result analysis. **Core principle: Monitoring is automatic, not manual. MUST run in foreground to analyze results immediately.**
 
 ## When to Use
 
@@ -26,8 +26,8 @@ Runs VolSync custom scorecard e2e test suite with automatic Slack notifications,
 **ALWAYS follow this order:**
 
 1. **Check environment** (webhook, branch, prerequisites)
-2. **Present summary** (environment, core command, monitoring status)
-3. **Run with automatic monitoring** (Slack notifications built-in)
+2. **Present summary and get confirmation** (show plan, WAIT for user approval)
+3. **Run with automatic monitoring** (foreground, 60min timeout, Slack notifications)
 4. **Analyze results** (pass/fail summary from logs)
 
 ## Quick Reference
@@ -38,7 +38,7 @@ Runs VolSync custom scorecard e2e test suite with automatic Slack notifications,
 | Verify branch | `git branch --show-current` |
 | Create service account | `./hack/ensure-volsync-test-runner.sh` |
 | Install operator-sdk | `make operator-sdk` |
-| Run monitored tests | Use script below |
+| Run monitored tests | Use script below (foreground, 60min timeout) |
 
 ## Implementation
 
@@ -78,9 +78,9 @@ export KUBECONFIG=/path/to/kubeconfig
 make operator-sdk
 ```
 
-### Step 2: Present Summary
+### Step 2: Present Summary and Get Confirmation
 
-Before running tests, show user:
+Before running tests, show user the plan and **WAIT for confirmation**:
 
 ```
 ## VolSync E2E Testing Plan
@@ -105,7 +105,13 @@ cd /path/to/volsync
 ```
 
 **Monitoring:** [Enabled with Slack notifications | Running without notifications]
+
+**Duration:** Tests will run 20-30 minutes. Script runs in foreground with 60min timeout.
 ```
+
+**CRITICAL: Ask for confirmation before proceeding to Step 3.**
+- User needs time to review environment, cluster, and monitoring setup
+- Don't proceed until user confirms it's ready to run
 
 ### Step 3: Create Monitoring Script
 
@@ -198,12 +204,25 @@ echo "========================================"
 exit $EXIT_CODE
 ```
 
-**Then run:**
+**Then run in FOREGROUND (REQUIRED - NOT background):**
 
 ```bash
 chmod +x /tmp/volsync-e2e-monitor.sh
-/tmp/volsync-e2e-monitor.sh
+/tmp/volsync-e2e-monitor.sh  # MUST run in foreground - blocks until completion, then analyzes results
+# If using Bash tool: set timeout to 3600000ms (60 minutes) minimum - tests take 20-30 minutes
 ```
+
+**Why foreground is required:**
+- Step 4 needs immediate access to results for analysis
+- Script itself handles monitoring (Slack notifications)
+- Test duration (20-30 min) is expected - don't background it
+- Backgrounding breaks the workflow: can't analyze results when complete
+
+**Timeout requirements:**
+- Tests run for 20-30 minutes typically
+- Scorecard wait-time is 3600s (60 minutes) max
+- Bash tool timeout: Use 3600000ms (60 min) minimum, 4800000ms (80 min) safer
+- Never use default 120000ms (2 min) - tests will be killed mid-execution
 
 ### Step 4: Analyze Results
 
@@ -233,6 +252,11 @@ grep -B 5 "State: fail" "$LOG_FILE" | head -30
 | Forgot service account setup | Run `./hack/ensure-volsync-test-runner.sh` first |
 | Used `grep -c` in script | Use `wc -l` instead (grep -c breaks arithmetic) |
 | Didn't present summary first | Always show environment and command before running |
+| Presented summary, immediately ran tests | Present summary, WAIT for user confirmation, then run |
+| Ran monitoring script in background | MUST run in foreground - Step 4 needs immediate results |
+| Saw long timeout, assumed background | Long duration is expected. Foreground required for analysis. |
+| Used default or short timeout (2-10 min) | Tests take 20-30 min. Use 3600000ms (60 min) minimum timeout. |
+| Killed running tests to "restart correctly" | NEVER stop tests without asking user first. Check what's running. |
 
 ## Red Flags - STOP Immediately
 
@@ -242,11 +266,17 @@ These thoughts mean you're about to violate the workflow:
 |---------|---------|
 | "Do you have a Slack webhook configured?" | Check environment automatically. Never ask. |
 | "Let me send a Slack notification now" | Notifications are automatic in monitoring script. |
-| "I'll run the tests and notify you after" | Present summary FIRST, then run with monitoring. |
+| "I'll run the tests and notify you after" | Present summary FIRST, wait for confirmation, then run. |
+| "Summary looks good, proceeding now" | WAIT for user confirmation. Don't assume approval. |
 | "The script has notification code, good enough" | Script must actually WORK. Verify it sends. |
 | "Monitoring is optional" | If webhook exists, monitoring is mandatory. |
+| "Long-running command, should background it" | NO. Foreground required for Step 4 analysis. |
+| "I'll check results later when it completes" | Breaks workflow. Run foreground, analyze immediately. |
+| "Background with notification is same thing" | NO. Can't analyze results if backgrounded. |
+| "Let me give it a bigger timeout, like 10 min" | Tests take 20-30 min. Use 3600000ms (60 min) minimum. |
+| "Let me stop this and restart correctly" | STOP. Ask user first. Killing tests wastes 20-30 min. |
 
-**All of these mean: Follow the 4-step workflow above.**
+**All of these mean: Follow the 4-step workflow above. Present summary, WAIT for confirmation, run in FOREGROUND with 60min timeout. Never kill running tests.**
 
 ## Real-World Impact
 
