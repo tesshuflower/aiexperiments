@@ -233,23 +233,22 @@ chmod +x /tmp/volsync-e2e-monitor.sh
 - Bash tool timeout: Use 3600000ms (60 min) minimum, 4800000ms (80 min) safer
 - Never use default 120000ms (2 min) - tests will be killed mid-execution
 
-### Step 4: Analyze Results
+### Step 4: Report Completion
 
-After completion, check log file for details:
+**When monitoring script finishes:**
+- Script already analyzed results (via trap cleanup function)
+- Script already sent Slack notification with full summary
+- Script already displayed summary to console
 
+**Just report:** "Tests complete. Slack notification sent with results."
+
+**DO NOT run additional analysis commands** - the script already did everything.
+
+**If user later asks for detailed failure analysis:**
 ```bash
 LOG_FILE="/tmp/volsync-e2e-<timestamp>.log"
-
-# Summary already displayed by script
-
-# If failures, investigate:
 grep -B 5 "State: fail" "$LOG_FILE" | head -30
 ```
-
-**Success criteria:**
-- 95%+ pass rate = successful test run
-- Core functionality (Restic, Rclone, Rsync, Syncthing) should pass
-- Infrastructure errors (404, API connectivity) vs functional failures
 
 ## Common Mistakes
 
@@ -266,6 +265,8 @@ grep -B 5 "State: fail" "$LOG_FILE" | head -30
 | Saw long timeout, assumed background | Long duration is expected. Foreground required for analysis. |
 | Used default or short timeout (2-10 min) | Tests take 20-30 min. Use 3600000ms (60 min) minimum timeout. |
 | Killed running tests to "restart correctly" | NEVER stop tests without asking user first. Check what's running. |
+| Script completed but no Slack notification sent | Use `trap cleanup EXIT` to ensure notification always sends. |
+| Prompted user "should I send Slack notification?" | NEVER ask. Script already sent it automatically. |
 
 ## Red Flags - STOP Immediately
 
@@ -277,7 +278,9 @@ These thoughts mean you're about to violate the workflow:
 | "Let me send a Slack notification now" | Notifications are automatic in monitoring script. |
 | "I'll run the tests and notify you after" | Present summary FIRST, wait for confirmation, then run. |
 | "Summary looks good, proceeding now" | WAIT for user confirmation. Don't assume approval. |
-| "The script has notification code, good enough" | Script must actually WORK. Verify it sends. |
+| "The script has notification code, good enough" | Use trap to ENSURE it always runs, even on error. |
+| "Should I send you the Slack notification?" | NEVER ask. Notification sent automatically by script. |
+| "Let me notify you in Slack about results" | Script already did it. Don't prompt user. |
 | "Monitoring is optional" | If webhook exists, monitoring is mandatory. |
 | "Long-running command, should background it" | NO. Foreground required for Step 4 analysis. |
 | "I'll check results later when it completes" | Breaks workflow. Run foreground, analyze immediately. |
