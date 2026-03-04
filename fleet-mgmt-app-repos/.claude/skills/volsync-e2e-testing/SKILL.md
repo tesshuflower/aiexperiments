@@ -143,11 +143,13 @@ cleanup() {
     local final_exit=$?
     [ $EXIT_CODE -eq 0 ] && EXIT_CODE=$final_exit
 
-    # Analyze results (use wc -l, not grep -c)
-    PASS_COUNT=$(grep "State: pass" "$LOG_FILE" 2>/dev/null | wc -l || echo "0")
-    FAIL_COUNT=$(grep "State: fail" "$LOG_FILE" 2>/dev/null | wc -l || echo "0")
+    # Analyze results - use xargs to strip whitespace from wc output
+    PASS_COUNT=$(grep "State: pass" "$LOG_FILE" 2>/dev/null | wc -l | xargs)
+    FAIL_COUNT=$(grep "State: fail" "$LOG_FILE" 2>/dev/null | wc -l | xargs)
 
-    # Force integer conversion to strip whitespace
+    # Default to 0 if empty, then force integer
+    PASS_COUNT=${PASS_COUNT:-0}
+    FAIL_COUNT=${FAIL_COUNT:-0}
     PASS_COUNT=$((PASS_COUNT + 0))
     FAIL_COUNT=$((FAIL_COUNT + 0))
     TOTAL=$((PASS_COUNT + FAIL_COUNT))
@@ -258,7 +260,7 @@ grep -B 5 "State: fail" "$LOG_FILE" | head -30
 | Manual Slack notification after tests | Use automatic monitoring script |
 | Wrong branch for operator version | Verify branch matches version before running |
 | Forgot service account setup | Run `./hack/ensure-volsync-test-runner.sh` first |
-| Used `grep -c` in script | Use `wc -l` instead (grep -c breaks arithmetic) |
+| Used `grep -c` or didn't trim whitespace | Use `wc -l \| xargs` to strip whitespace, then default to 0 |
 | Didn't present summary first | Always show environment and command before running |
 | Presented summary, immediately ran tests | Present summary, WAIT for user confirmation, then run |
 | Ran monitoring script in background | MUST run in foreground - Step 4 needs immediate results |
@@ -266,6 +268,7 @@ grep -B 5 "State: fail" "$LOG_FILE" | head -30
 | Used default or short timeout (2-10 min) | Tests take 20-30 min. Use 3600000ms (60 min) minimum timeout. |
 | Killed running tests to "restart correctly" | NEVER stop tests without asking user first. Check what's running. |
 | Script completed but no Slack notification sent | Use `trap cleanup EXIT` to ensure notification always sends. |
+| Trap function itself failed with syntax error | Trap must be bulletproof: use `xargs` to trim whitespace, `${VAR:-0}` for defaults |
 | Prompted user "should I send Slack notification?" | NEVER ask. Script already sent it automatically. |
 
 ## Red Flags - STOP Immediately
@@ -279,6 +282,7 @@ These thoughts mean you're about to violate the workflow:
 | "I'll run the tests and notify you after" | Present summary FIRST, wait for confirmation, then run. |
 | "Summary looks good, proceeding now" | WAIT for user confirmation. Don't assume approval. |
 | "The script has notification code, good enough" | Use trap to ENSURE it always runs, even on error. |
+| "Trap looks correct, should work fine" | Trap must be TESTED. Arithmetic errors will break it silently. |
 | "Should I send you the Slack notification?" | NEVER ask. Notification sent automatically by script. |
 | "Let me notify you in Slack about results" | Script already did it. Don't prompt user. |
 | "Monitoring is optional" | If webhook exists, monitoring is mandatory. |
